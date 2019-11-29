@@ -16,7 +16,7 @@ type Transport struct {
 
 // RoundTrip is a round tripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	idToken, err := metadata.IDToken(audFromRequest(r))
+	idToken, err := metadata.IDToken(audFromRequest(req))
 	if err != nil {
 		return nil, err
 	}

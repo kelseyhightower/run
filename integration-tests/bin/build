@@ -1,0 +1,8 @@
+#!/bin/bash
+
+
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -a -tags netgo \
+      -ldflags '-w -extldflags "-static"' \
+      -o integration .
+gcloud builds submit -t gcr.io/hightowerlabs/run-integration:0.0.1 .
