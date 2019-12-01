@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"sync"
 )
@@ -19,11 +18,11 @@ func NewLogger(component string) *Logger {
 	return &Logger{out: os.Stdout, component: component}
 }
 
-func (l *Logger) LogError(v ...interface{}) {
+func (l *Logger) Error(v ...interface{}) {
 	l.Log("ERROR", v...)
 }
 
-func (l *Logger) LogNotice(v ...interface{}) {
+func (l *Logger) Notice(v ...interface{}) {
 	l.Log("NOTICE", v...)
 }
 
@@ -33,7 +32,7 @@ func (l *Logger) Log(severity string, v ...interface{}) {
 		Severity:  severity,
 		Component: l.component,
 	}
-	log.Println(e)
+	fmt.Println(e)
 }
 
 type Entry struct {
@@ -49,7 +48,7 @@ func (e Entry) String() string {
 	}
 	data, err := json.Marshal(e)
 	if err != nil {
-		log.Printf("json.Marshal: %v", err)
+		fmt.Printf("json.Marshal: %v", err)
 	}
 	return string(data)
 }
