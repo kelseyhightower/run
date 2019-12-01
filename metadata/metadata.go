@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -45,13 +47,15 @@ func IDToken(serviceURL string) (string, error) {
 }
 
 // Region returns the cloud run region.
+// https://cloud.google.com/run/docs/reference/container-contract
 func Region() (string, error) {
 	endpoint := "http://metadata.google.internal/computeMetadata/v1/instance/zone"
 
-	region, err := httpRequest(endpoint)
+	data, err := httpRequest(endpoint)
 	if err != nil {
 		return "", err
 	}
 
-	return string(region), nil
+	region := strings.TrimSuffix(path.Base(string(data)), "-1")
+	return region, nil
 }
