@@ -12,7 +12,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		region, err := metadata.Region()
 		if err != nil {
-			log.Println(err)
+			run.LogError(err)
 		}
 
 		w.Write([]byte(region))
