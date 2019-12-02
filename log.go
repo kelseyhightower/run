@@ -4,15 +4,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
+	"strconv"
 	"strings"
 )
 
 // An Entry represents a Stackdriver log entry.
 type Entry struct {
-	Message   string `json:"message"`
-	Severity  string `json:"severity,omitempty"`
-	Trace     string `json:"logging.googleapis.com/trace,omitempty"`
-	Component string `json:"component,omitempty"`
+	Message        string                  `json:"message"`
+	Severity       string                  `json:"severity,omitempty"`
+	Trace          string                  `json:"logging.googleapis.com/trace,omitempty"`
+	Component      string                  `json:"component,omitempty"`
+	SourceLocation *LogEntrySourceLocation `json:"logging.googleapis.com/sourceLocation,omitempty"`
+}
+
+// LogEntrySourceLocation.
+type LogEntrySourceLocation struct {
+	File     string `json:"file,omitempty"`
+	Function string `json:"function,omitempty"`
+	Line     string `json:"line,omitempty"`
 }
 
 // String returns a JSON formatted string expected by Stackdriver.
@@ -84,10 +94,21 @@ func (l *Logger) Log(severity string, v ...interface{}) {
 		trace = fmt.Sprintf("projects/%s/traces/%s", l.projectID, traceID)
 	}
 
+	var sourceLocation *LogEntrySourceLocation
+	pc, file, line, ok := runtime.Caller(2)
+	if ok {
+		sourceLocation = &LogEntrySourceLocation{
+			File:     file,
+			Line:     strconv.Itoa(line),
+			Function: runtime.FuncForPC(pc).Name(),
+		}
+	}
+
 	e := Entry{
-		Message:  fmt.Sprint(v...),
-		Severity: severity,
-		Trace:    trace,
+		Message:        fmt.Sprint(v...),
+		Severity:       severity,
+		Trace:          trace,
+		SourceLocation: sourceLocation,
 	}
 
 	fmt.Println(e)

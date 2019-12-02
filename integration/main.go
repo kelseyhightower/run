@@ -14,10 +14,9 @@ func main() {
 	}
 
 	logger.Notice("Starting integration app...")
-	logger.Error("This is an error.")
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		logger.Info(r, "Handling request...")
+		logger.Info(r, "Handling HTTP request...")
 
 		region, err := run.Region()
 		if err != nil {
