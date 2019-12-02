@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/kelseyhightower/run"
-	"github.com/kelseyhightower/run/metadata"
 )
 
 func main() {
@@ -16,7 +15,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		logger.Info(r, "Handling request...")
 
-		region, err := metadata.Region()
+		region, err := run.Region()
 		if err != nil {
 			logger.Error(err)
 		}

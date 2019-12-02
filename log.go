@@ -7,13 +7,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
-
-	"github.com/kelseyhightower/run/metadata"
 )
 
 type Logger struct {
-	mu        sync.Mutex // ensures atomic writes; protects the following fields
 	component string
 	out       io.Writer // destination for output
 }
@@ -36,7 +32,7 @@ func (l *Logger) Notice(v ...interface{}) {
 
 func extractTrace(v interface{}) string {
 	var trace string
-	projectID, err := metadata.ProjectID()
+	projectID, err := ProjectID()
 	if err != nil {
 		fmt.Println(err)
 		return ""

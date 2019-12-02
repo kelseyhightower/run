@@ -6,3 +6,5 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
       -ldflags '-w -extldflags "-static"' \
       -o integration .
 gcloud builds submit -t gcr.io/hightowerlabs/run-integration:0.0.1 .
+
+rm integration
