@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+func ProjectID() (string, error) {
+	endpoint := "http://metadata.google.internal/computeMetadata/v1/project/project-id"
+
+	data, err := httpRequest(endpoint)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
 func httpRequest(endpoint string) ([]byte, error) {
 	request, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
