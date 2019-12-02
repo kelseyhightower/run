@@ -5,8 +5,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-
-	"github.com/kelseyhightower/run/metadata"
 )
 
 // Transport is an HTTP transport.
@@ -16,7 +14,7 @@ type Transport struct {
 
 // RoundTrip is a round tripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	idToken, err := metadata.IDToken(audFromRequest(req))
+	idToken, err := IDToken(audFromRequest(req))
 	if err != nil {
 		return nil, err
 	}
