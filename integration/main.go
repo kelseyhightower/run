@@ -8,7 +8,11 @@ import (
 )
 
 func main() {
-	logger := run.NewLogger("integration")
+	logger, err := run.NewLogger()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	logger.Notice("Starting integration app...")
 	logger.Error("This is an error.")
 

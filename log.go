@@ -3,19 +3,45 @@ package run
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"strings"
 )
 
-type Logger struct {
-	component string
-	out       io.Writer // destination for output
+// An Entry represents a Stackdriver log entry.
+type Entry struct {
+	Message   string `json:"message"`
+	Severity  string `json:"severity,omitempty"`
+	Trace     string `json:"logging.googleapis.com/trace,omitempty"`
+	Component string `json:"component,omitempty"`
 }
 
-func NewLogger(component string) *Logger {
-	return &Logger{out: os.Stdout, component: component}
+// String returns a JSON formatted string expected by Stackdriver.
+func (e Entry) String() string {
+	if e.Severity == "" {
+		e.Severity = "INFO"
+	}
+	data, err := json.Marshal(e)
+	if err != nil {
+		fmt.Printf("json.Marshal: %v", err)
+	}
+	return string(data)
+}
+
+// A Logger represents an active logging object that generates JSON formatted
+// log entries to standard out. Logs are formatted as expected by Cloud Run's
+// Stackdriver integration.
+type Logger struct {
+	projectID string
+}
+
+// NewLogger creates a new Logger.
+func NewLogger() (*Logger, error) {
+	projectID, err := ProjectID()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Logger{projectID: projectID}, nil
 }
 
 func (l *Logger) Info(v ...interface{}) {
@@ -30,24 +56,15 @@ func (l *Logger) Notice(v ...interface{}) {
 	l.Log("NOTICE", v...)
 }
 
-func extractTrace(v interface{}) string {
+func extractTraceID(v interface{}) string {
 	var trace string
-	projectID, err := ProjectID()
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-
-	if projectID == "" {
-		return ""
-	}
 
 	switch t := v.(type) {
 	case *http.Request:
 		traceHeader := t.Header.Get("X-Cloud-Trace-Context")
 		ts := strings.Split(traceHeader, "/")
 		if len(ts) > 0 && len(ts[0]) > 0 {
-			trace = fmt.Sprintf("projects/%s/traces/%s", projectID, ts[0])
+			trace = ts[0]
 		}
 	default:
 		trace = ""
@@ -57,37 +74,21 @@ func extractTrace(v interface{}) string {
 }
 
 func (l *Logger) Log(severity string, v ...interface{}) {
-	trace := extractTrace(v[0])
-	if trace != "" {
+	var trace string
+	traceID := extractTraceID(v[0])
+
+	if traceID != "" {
 		// The first argument was an *http.Request or context object
 		// and is not part of the message
 		v = v[1:]
+		trace = fmt.Sprintf("projects/%s/traces/%s", l.projectID, traceID)
 	}
 
 	e := Entry{
-		Component: l.component,
-		Message:   fmt.Sprint(v...),
-		Severity:  severity,
-		Trace:     trace,
+		Message:  fmt.Sprint(v...),
+		Severity: severity,
+		Trace:    trace,
 	}
 
 	fmt.Println(e)
-}
-
-type Entry struct {
-	Message   string `json:"message"`
-	Severity  string `json:"severity,omitempty"`
-	Trace     string `json:"logging.googleapis.com/trace,omitempty"`
-	Component string `json:"component,omitempty"`
-}
-
-func (e Entry) String() string {
-	if e.Severity == "" {
-		e.Severity = "INFO"
-	}
-	data, err := json.Marshal(e)
-	if err != nil {
-		fmt.Printf("json.Marshal: %v", err)
-	}
-	return string(data)
 }
