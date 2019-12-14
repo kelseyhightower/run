@@ -57,8 +57,6 @@ func AccessSecret(name string) (string, error) {
 		return "", err
 	}
 
-	fmt.Println(string(data))
-
 	defer response.Body.Close()
 
 	var s SecretVersion
