@@ -1,7 +1,8 @@
-package main
+package run
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -22,11 +23,11 @@ type SecretPayload struct {
 }
 
 func formatSecretVersion(project, name, version string) string {
-	return fmt.Sprintf("name=projects/%s/secrets/%s/versions/%s", project, name, version)
+	return fmt.Sprintf("projects/%s/secrets/%s/versions/%s", project, name, version)
 }
 
-func AccessSecret(name, version) (string, error) {
-	token, err := Token()
+func AccessSecret(name string) (string, error) {
+	token, err := Token([]string{"https://www.googleapis.com/auth/cloud-platform"})
 	if err != nil {
 		return "", err
 	}
@@ -36,13 +37,15 @@ func AccessSecret(name, version) (string, error) {
 		return "", err
 	}
 
-	secretVersion := formatSecretVersion(numericProjectID, name, version)
+	secretVersion := formatSecretVersion(numericProjectID, name, "latest")
 	endpoint := fmt.Sprintf("%s/%s", secretmanagerEndpoint, secretVersion)
 
 	request, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return "", err
 	}
+
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
@@ -54,15 +57,17 @@ func AccessSecret(name, version) (string, error) {
 		return "", err
 	}
 
+	fmt.Println(string(data))
+
 	defer response.Body.Close()
 
 	var s SecretVersion
-	err = json.Umarshal(data, &s)
+	err = json.Unmarshal(data, &s)
 	if err != nil {
 		return "", err
 	}
 
-	decodedString, err := base64.StdEncoding.DecodeString(s.Data)
+	decodedString, err := base64.StdEncoding.DecodeString(s.Payload.Data)
 	if err != nil {
 		return "", err
 	}

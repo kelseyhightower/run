@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -22,6 +23,13 @@ func main() {
 		if err != nil {
 			logger.Error(err)
 		}
+
+		secret, err := run.AccessSecret("integration")
+		if err != nil {
+			logger.Error(err)
+		}
+
+		logger.Info(fmt.Sprintf("secret: %s", secret))
 
 		w.Write([]byte(region))
 	})

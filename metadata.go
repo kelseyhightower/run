@@ -23,19 +23,8 @@ func ProjectID() (string, error) {
 
 // NumericProjectID returns the active project ID from the metadata service.
 func NumericProjectID() (string, error) {
-    endpoint := "http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id"
+	endpoint := "http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id"
 
-    data, err := httpRequest(endpoint)
-    if err != nil {
-        return "", err
-    }
-
-    return string(data), nil
-}
-
-// Token returns the default service account token.
-func Token() (string, error) {
-	endpoint := "http://metadata.google.internal/instance/service-accounts/default/token"
 	data, err := httpRequest(endpoint)
 	if err != nil {
 		return "", err
@@ -44,6 +33,18 @@ func Token() (string, error) {
 	return string(data), nil
 }
 
+// Token returns the default service account token.
+func Token(scopes []string) (string, error) {
+	s := strings.Join(scopes, ",")
+
+	endpoint := fmt.Sprintf("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token?scopes=%s", s)
+	data, err := httpRequest(endpoint)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
 
 // IDToken returns an id token based on the service url.
 func IDToken(serviceURL string) (string, error) {
