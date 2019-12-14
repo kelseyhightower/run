@@ -1,6 +1,7 @@
 package run
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -8,6 +9,13 @@ import (
 	"strings"
 	"time"
 )
+
+// AccessToken holds a GCP access token.
+type AccessToken struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int64  `json:"expires_in"`
+	TokenType   string `json:"token_type"`
+}
 
 // ProjectID returns the active project ID from the metadata service.
 func ProjectID() (string, error) {
@@ -34,16 +42,22 @@ func NumericProjectID() (string, error) {
 }
 
 // Token returns the default service account token.
-func Token(scopes []string) (string, error) {
+func Token(scopes []string) (*AccessToken, error) {
 	s := strings.Join(scopes, ",")
 
 	endpoint := fmt.Sprintf("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token?scopes=%s", s)
 	data, err := httpRequest(endpoint)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(data), nil
+	var accessToken AccessToken
+	err = json.Unmarshal(data, &accessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return &accessToken, nil
 }
 
 // IDToken returns an id token based on the service url.

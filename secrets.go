@@ -38,14 +38,14 @@ func AccessSecret(name string) (string, error) {
 	}
 
 	secretVersion := formatSecretVersion(numericProjectID, name, "latest")
-	endpoint := fmt.Sprintf("%s/%s", secretmanagerEndpoint, secretVersion)
+	endpoint := fmt.Sprintf("%s/%s:access", secretmanagerEndpoint, secretVersion)
 
 	request, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return "", err
 	}
 
-	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
