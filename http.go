@@ -7,6 +7,11 @@ import (
 	"os"
 )
 
+// HTTPClient is an http.Client
+var HTTPClient = &http.Client{
+	Transport: &Transport{},
+}
+
 // Transport is an HTTP transport.
 type Transport struct {
 	tr http.RoundTripper
@@ -28,7 +33,9 @@ func audFromRequest(r *http.Request) string {
 	return fmt.Sprintf("%s://%s", r.URL.Scheme, r.URL.Hostname())
 }
 
-// ListenAndServe is serving.
+// ListenAndServe starts an HTTP server with a given handler listening
+// on the port defined by the PORT environment variable or "8080" if not
+// set.
 func ListenAndServe(handler http.Handler) error {
 	port := os.Getenv("PORT")
 	if port == "" {
