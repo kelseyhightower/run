@@ -18,7 +18,10 @@ type Entry struct {
 	SourceLocation *LogEntrySourceLocation `json:"logging.googleapis.com/sourceLocation,omitempty"`
 }
 
-// LogEntrySourceLocation.
+// A LogEntrySourceLocation holds source code location data.
+//
+// Location data is used to provide additional context when logging
+// to Stackdriver.
 type LogEntrySourceLocation struct {
 	File     string `json:"file,omitempty"`
 	Function string `json:"function,omitempty"`
@@ -54,14 +57,26 @@ func NewLogger() (*Logger, error) {
 	return &Logger{projectID: projectID}, nil
 }
 
+// Info formats using the default formats for its operands and writes to standard output.
+//
+// Logs are written in the Stackdriver structured logging format with the severity level
+// set to INFO.
 func (l *Logger) Info(v ...interface{}) {
 	l.Log("INFO", v...)
 }
 
+// Error formats using the default formats for its operands and writes to standard output.
+//
+// Logs are written in the Stackdriver structured logging format with the severity level
+// set to ERROR.
 func (l *Logger) Error(v ...interface{}) {
 	l.Log("ERROR", v...)
 }
 
+// Notice formats using the default formats for its operands and writes to standard output.
+//
+// Logs are written in the Stackdriver structured logging format with the severity level
+// set to NOTICE.
 func (l *Logger) Notice(v ...interface{}) {
 	l.Log("NOTICE", v...)
 }
@@ -83,6 +98,18 @@ func extractTraceID(v interface{}) string {
 	return trace
 }
 
+// Log writes logging events with the given severity.
+//
+// Log formats it's operands using the default format for each value and
+// combines the results in to a single log message. If the first value is
+// an *http.Request, the X-Cloud-Trace-Context HTTP header will be extracted
+// and included in the Stackdriver log entry.
+//
+// Source file location data will be included in log entires.
+//
+// Logs are written to stdout in the Stackdriver structured log
+// format. See https://cloud.google.com/logging/docs/structured-logging
+// for more details.
 func (l *Logger) Log(severity string, v ...interface{}) {
 	var trace string
 	traceID := extractTraceID(v[0])
