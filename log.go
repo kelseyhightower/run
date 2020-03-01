@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// An Entry represents a Stackdriver log entry.
-type Entry struct {
+// An LogEntry represents a Stackdriver log entry.
+type LogEntry struct {
 	Message        string                  `json:"message"`
 	Severity       string                  `json:"severity,omitempty"`
 	Trace          string                  `json:"logging.googleapis.com/trace,omitempty"`
@@ -29,11 +29,11 @@ type LogEntrySourceLocation struct {
 }
 
 // String returns a JSON formatted string expected by Stackdriver.
-func (e Entry) String() string {
-	if e.Severity == "" {
-		e.Severity = "INFO"
+func (le LogEntry) String() string {
+	if le.Severity == "" {
+		le.Severity = "INFO"
 	}
-	data, err := json.Marshal(e)
+	data, err := json.Marshal(le)
 	if err != nil {
 		fmt.Printf("json.Marshal: %v", err)
 	}
@@ -131,7 +131,7 @@ func (l *Logger) Log(severity string, v ...interface{}) {
 		}
 	}
 
-	e := Entry{
+	e := LogEntry{
 		Message:        fmt.Sprint(v...),
 		Severity:       severity,
 		Trace:          trace,

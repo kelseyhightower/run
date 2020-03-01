@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+const (
+	userAgent = "golang-run/0.0.1"
+)
+
 // AccessToken holds a GCP access token.
 type AccessToken struct {
 	AccessToken string `json:"access_token"`
@@ -62,7 +66,7 @@ func Token(scopes []string) (*AccessToken, error) {
 
 // IDToken returns an id token based on the service url.
 func IDToken(serviceURL string) (string, error) {
-	endpoint := fmt.Sprintf("http://metadata.google.internal/instance/service-accounts/default/identity?audience=%s", serviceURL)
+	endpoint := fmt.Sprintf("http://169.254.169.254/instance/service-accounts/default/identity?audience=%s", serviceURL)
 
 	idToken, err := httpRequest(endpoint)
 	if err != nil {
@@ -90,6 +94,7 @@ func httpRequest(endpoint string) ([]byte, error) {
 		return nil, err
 	}
 
+	request.Header.Set("User-Agent", userAgent)
 	request.Header.Add("Metadata-Flavor", "Google")
 
 	timeout := time.Duration(3) * time.Second

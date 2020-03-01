@@ -12,12 +12,13 @@ var HTTPClient = &http.Client{
 	Transport: &Transport{},
 }
 
-// Transport is an HTTP transport.
+// Transport is an http.RoundTripper that attaches ID tokens to all
+// all outgoing request.
 type Transport struct {
 	tr http.RoundTripper
 }
 
-// RoundTrip is a round tripper.
+// RoundTrip implements http.RoundTripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	idToken, err := IDToken(audFromRequest(req))
 	if err != nil {
@@ -25,6 +26,9 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", idToken))
+	if t.tr == nil {
+		t.tr = http.DefaultTransport
+	}
 	return t.tr.RoundTrip(req)
 }
 
