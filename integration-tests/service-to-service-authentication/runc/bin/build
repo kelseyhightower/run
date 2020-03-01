@@ -1,0 +1,9 @@
+#!/bin/bash
+
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -a -tags netgo \
+      -ldflags '-w -extldflags "-static"' \
+      -o runc .
+gcloud builds submit -t gcr.io/hightowerlabs/runc:0.0.1 .
+
+rm runc

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+gcloud beta run services replace service.yaml \
+  --platform managed \
+  --region us-central1

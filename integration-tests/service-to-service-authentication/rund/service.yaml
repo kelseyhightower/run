@@ -1,0 +1,16 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: runc
+spec:
+  traffic:
+    - percent: 100
+      latestRevision: true
+  template:
+    spec:
+      containerConcurrency: 50
+      containers:
+        - image: gcr.io/hightowerlabs/runc:0.0.1
+          resources:
+            limits:
+              memory: 1G

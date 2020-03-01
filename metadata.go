@@ -100,6 +100,8 @@ func httpRequest(endpoint string) ([]byte, error) {
 	timeout := time.Duration(3) * time.Second
 	client := http.Client{Timeout: timeout}
 
+	fmt.Println(request.URL)
+
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, err
