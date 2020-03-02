@@ -66,7 +66,7 @@ func Token(scopes []string) (*AccessToken, error) {
 
 // IDToken returns an id token based on the service url.
 func IDToken(serviceURL string) (string, error) {
-	endpoint := fmt.Sprintf("http://169.254.169.254/instance/service-accounts/default/identity?audience=%s", serviceURL)
+	endpoint := fmt.Sprintf("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=%s", serviceURL)
 
 	idToken, err := httpRequest(endpoint)
 	if err != nil {
