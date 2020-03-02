@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -14,24 +13,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	logger.Notice("Starting integration app...")
+	logger.Notice("Starting runc...")
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Handling HTTP request...")
-
-		region, err := run.Region()
-		if err != nil {
-			logger.Error(err)
-		}
-
-		secret, err := run.AccessSecret("integration")
-		if err != nil {
-			logger.Error(err)
-		}
-
-		logger.Info(fmt.Sprintf("secret: %s", secret))
-
-		w.Write([]byte(region))
+		w.Write([]byte("Response from runc"))
 	})
 
 	log.Fatal(run.ListenAndServe(nil))

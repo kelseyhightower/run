@@ -1,11 +1,10 @@
 #!/bin/bash
 
 gcloud beta run deploy runc \
-  --image gcr.io/hightowerlabs/runc:0.0.1 \
-  --service-account runc-identity \
-  --no-allow-unauthenticated \
-  --memory 2G \
   --cpu 2 \
+  --image gcr.io/hightowerlabs/runc:0.0.1 \
+  --memory 2G \
+  --no-allow-unauthenticated \
   --platform managed \
-  --region us-east1
- 
+  --region us-east1 \
+  --service-account runc-identity

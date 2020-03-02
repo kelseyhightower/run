@@ -1,0 +1,5 @@
+#!/bin/bash
+
+gcloud run services add-iam-policy-binding runc \
+  --member serviceAccount:rund-identity@hightowerlabs.iam.gserviceaccount.com \
+  --role roles/run.invoker

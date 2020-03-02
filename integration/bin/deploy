@@ -1,8 +1,0 @@
-#!/bin/bash
-
-gcloud run deploy integration-tests \
-  --allow-unauthenticated \
-  --concurrency 50 \
-  --image gcr.io/hightowerlabs/run-integration:0.0.1 \
-  --memory 1G \
-  --region us-central1
