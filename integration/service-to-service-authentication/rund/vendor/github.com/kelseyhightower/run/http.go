@@ -53,7 +53,7 @@ func expandServiceURL(r *http.Request) error {
 	r.Host = u.Host
 	r.URL.Host = u.Host
 	r.URL.Scheme = u.Scheme
-	r.Header.Set("Host", u.Hostname())
+	r.Header.Set("Host", u.Hostname()) 
 
 	return nil
 }
@@ -63,6 +63,9 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err := expandServiceURL(req); err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("expanded url: %s\n", req.URL)
+	fmt.Printf("host header: %s\n", req.Header.Get("Host"))
 
 	idToken, err := IDToken(audFromRequest(req))
 	if err != nil {

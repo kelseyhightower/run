@@ -4,7 +4,7 @@ PROJECT_ID=$(gcloud config get-value project)
 
 gcloud beta run deploy rund \
   --allow-unauthenticated \
-  --args="--runc-service-url,https://runc-6bn2iswfgq-ue.a.run.app" \
+  --args="--runc-service-url,https://runc/" \
   --cpu 2 \
   --image gcr.io/hightowerlabs/rund:0.0.1 \
   --memory 2G \
