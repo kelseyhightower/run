@@ -74,7 +74,7 @@ func resolveServiceName(r *http.Request) error {
 
 // RoundTrip implements http.RoundTripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if !DisableServiceNameResolution {
+	if !t.DisableServiceNameResolution {
 		if err := resolveServiceName(req); err != nil {
 			return nil, err
 		}

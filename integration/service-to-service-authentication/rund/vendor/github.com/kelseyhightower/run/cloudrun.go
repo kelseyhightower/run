@@ -53,8 +53,6 @@ func getService(name, region, project string) (*Service, error) {
 	endpoint := fmt.Sprintf("%s/apis/serving.knative.dev/v1/namespaces/%s/services/%s",
 		regionalEndpoint(region), project, name)
 
-	fmt.Printf("cloud run endpoint: %s", endpoint)
-
 	token, err := Token([]string{"https://www.googleapis.com/auth/cloud-platform"})
 	if err != nil {
 		return nil, err
@@ -78,14 +76,11 @@ func getService(name, region, project string) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("raw data from cloud run api: %s\n", data)
 
 	err = json.Unmarshal(data, &service)
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("service url: %s\n", service.Status.Address.URL)
 
 	return &service, nil
 }

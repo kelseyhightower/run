@@ -17,10 +17,26 @@ var HTTPClient = &http.Client{
 // Transport is an http.RoundTripper that attaches ID tokens to all
 // all outgoing request.
 type Transport struct {
+	// DisableServiceNameResolution, if true, prevents the resolution
+	// of service names using the Cloud Run API.
+	//
+	// When true, HTTP requests are modified by replacing the original
+	// HTTP target URL with the service URL from the Cloud Run service
+	// with a matching name in the same region as the caller.
+	//
+	// Examples:
+	//
+	//   http://service => https://service-6bn2iswfgq-ue.a.run.app
+	//   https://service => https://service-6bn2iswfgq-ue.a.run.app
+	//
+	// Service accounts must have the roles/run.viewer IAM permission
+	// to resolve service names using the Cloud Run API.
+	DisableServiceNameResolution bool
+
 	tr http.RoundTripper
 }
 
-func expandServiceURL(r *http.Request) error {
+func resolveServiceName(r *http.Request) error {
 	var (
 		serviceName string
 		region      string
@@ -30,14 +46,12 @@ func expandServiceURL(r *http.Request) error {
 	parts := strings.Split(r.URL.Host, ".")
 
 	switch n := len(parts); {
-	case n > 2:
+	case n > 1:
 		return nil
 	case n == 0:
 		return nil
 	case n == 1:
 		serviceName = parts[0]
-	case n == 2:
-		region = parts[1]
 	}
 
 	service, err := getService(serviceName, region, project)
@@ -53,19 +67,18 @@ func expandServiceURL(r *http.Request) error {
 	r.Host = u.Host
 	r.URL.Host = u.Host
 	r.URL.Scheme = u.Scheme
-	r.Header.Set("Host", u.Hostname()) 
+	r.Header.Set("Host", u.Hostname())
 
 	return nil
 }
 
 // RoundTrip implements http.RoundTripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if err := expandServiceURL(req); err != nil {
-		return nil, err
+	if !t.DisableServiceNameResolution {
+		if err := resolveServiceName(req); err != nil {
+			return nil, err
+		}
 	}
-
-	fmt.Printf("expanded url: %s\n", req.URL)
-	fmt.Printf("host header: %s\n", req.Header.Get("Host"))
 
 	idToken, err := IDToken(audFromRequest(req))
 	if err != nil {
