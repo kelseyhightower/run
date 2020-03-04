@@ -12,11 +12,13 @@ var (
 	secretmanagerEndpoint = "https://secretmanager.googleapis.com/v1beta1"
 )
 
+// SecretVersion represents a Google Cloud Secret.
 type SecretVersion struct {
 	Name    string
 	Payload SecretPayload `json:"payload"`
 }
 
+// SecretPayload holds the secret payload for a Google Cloud Secret.
 type SecretPayload struct {
 	// A base64-encoded string.
 	Data string `json:"data"`
@@ -26,10 +28,14 @@ func formatSecretVersion(project, name, version string) string {
 	return fmt.Sprintf("projects/%s/secrets/%s/versions/%s", project, name, version)
 }
 
+// AccessSecretVersion returns a Google Cloud Secret for the given
+// secret name and version.
 func AccessSecretVersion(name, version string) (string, error) {
 	return accessSecretVersion(name, version)
 }
 
+// AccessSecret returns the latest version of a Google Cloud Secret
+// for the given name.
 func AccessSecret(name string) (string, error) {
 	return accessSecretVersion(name, "latest")
 }
