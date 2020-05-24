@@ -1,0 +1,11 @@
+#!/bin/bash
+
+PROJECT_ID=$(gcloud config get-value project)
+
+cd frontend
+gcloud builds submit -t gcr.io/${PROJECT_ID}/run-frontend:0.0.1 .
+
+cd -
+cd backend
+gcloud builds submit -t gcr.io/${PROJECT_ID}/run-backend:0.0.1 .
+

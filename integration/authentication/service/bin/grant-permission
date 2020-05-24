@@ -1,0 +1,11 @@
+#!/bin/bash
+
+PROJECT_ID=$(gcloud config get-value project)
+
+gcloud run services add-iam-policy-binding run-backend \
+  --member serviceAccount:run-frontend@${PROJECT_ID}.iam.gserviceaccount.com \
+  --role roles/run.invoker
+
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member serviceAccount:run-frontend@${PROJECT_ID}.iam.gserviceaccount.com \
+  --role roles/run.viewer
