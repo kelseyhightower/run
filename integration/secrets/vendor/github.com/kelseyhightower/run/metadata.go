@@ -69,7 +69,7 @@ func Token(scopes []string) (*AccessToken, error) {
 	var accessToken AccessToken
 	err = json.Unmarshal(data, &accessToken)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("run/metadata: error retrieving access token: %v", err)
 	}
 
 	return &accessToken, nil

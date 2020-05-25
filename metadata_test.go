@@ -14,6 +14,12 @@ const (
 	testRegion           = "us-test1"
 )
 
+const testAccessToken = `{
+  "access_token": "ya29.AHES6ZRVmB7fkLtd1XTmq6mo0S1wqZZi3-Lh_s-6Uw7p8vtgSwg",
+  "expires_in": 3484,
+  "token_type": "Bearer"
+}`
+
 const (
 	testIDToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.Et9HFtf9R3GEMA0IICOfFMVXY7kkTX1wr4qCyhIf58U"
 )
@@ -43,6 +49,11 @@ func metadataHandler(w http.ResponseWriter, r *http.Request) {
 
 	if path == "/computeMetadata/v1/instance/region" {
 		fmt.Fprint(w, testRegion)
+		return
+	}
+
+	if path == "/computeMetadata/v1/instance/service-accounts/default/token" {
+		fmt.Fprint(w, testAccessToken)
 		return
 	}
 
