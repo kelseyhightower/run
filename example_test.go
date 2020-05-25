@@ -8,19 +8,23 @@ import (
 )
 
 func ExampleTransport() {
-	request, err := http.NewRequest("GET", "https://service-name", nil)
+	client := &http.Client{Transport: &run.Transport{}}
+
+	_, err := client.Get("https://example-6bn2iswfgq-uw.a.run.app")
 	if err != nil {
 		log.Println(err)
 		return
 	}
+}
 
-	httpClient := &http.Client{
+func ExampleTransport_serviceNameResolution() {
+	client := &http.Client{
 		Transport: &run.Transport{
 			EnableServiceNameResolution: true,
 		},
 	}
 
-	_, err = httpClient.Do(request)
+	_, err := client.Get("https://service-name")
 	if err != nil {
 		log.Println(err)
 		return
