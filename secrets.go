@@ -13,6 +13,41 @@ var (
 	secretmanagerEndpoint = "https://secretmanager.googleapis.com/v1"
 )
 
+// SecretManagerPermissionError is returned when calls to the Secret
+// Manager API fail to authenticate.
+type SecretManagerPermissionError struct {
+	Endpoint   string
+	Name       string
+	StatusCode int
+}
+
+func (e *SecretManagerPermissionError) Error() string {
+	return "run/secret-manager: permission denied"
+}
+
+// SecretNotFoundError is returned when a secret version does not
+// exist in the Secret Manager API.
+type SecretNotFoundError struct {
+	Endpoint string
+	Name     string
+}
+
+func (e *SecretNotFoundError) Error() string {
+	return "run: secret not found"
+}
+
+// SecretManagerError is returned when calls to the Secret Manager
+// API fail for an unknown reason.
+type SecretManagerError struct {
+	Endpoint   string
+	Name       string
+	StatusCode int
+}
+
+func (e *SecretManagerError) Error() string {
+	return "run: error retrieving secret"
+}
+
 // SecretVersion represents a Google Cloud Secret.
 type SecretVersion struct {
 	Name    string
@@ -75,6 +110,17 @@ func accessSecretVersion(name, version string) (string, error) {
 		return "", err
 	}
 	defer response.Body.Close()
+
+	switch s := response.StatusCode; s {
+	case 200:
+		break
+	case 401, 403:
+		return "", &SecretManagerPermissionError{endpoint, name, s}
+	case 404:
+		return "", &SecretNotFoundError{endpoint, name}
+	default:
+		return "", &SecretManagerError{endpoint, name, s}
+	}
 
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
