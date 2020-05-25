@@ -109,7 +109,7 @@ func getService(name, region, project string) (*Service, error) {
 	switch s := response.StatusCode; s {
 	case 200:
 		break
-	case 401:
+	case 401, 403:
 		return nil, &NameResolutionPermissionError{endpoint, name, s}
 	case 404:
 		return nil, &ServiceNotFoundError{endpoint, name}
