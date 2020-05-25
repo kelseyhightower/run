@@ -98,6 +98,7 @@ func getService(name, region, project string) (*Service, error) {
 		return nil, err
 	}
 
+	request.Header.Set("User-Agent", userAgent)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
 
 	httpClient := &http.Client{}

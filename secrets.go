@@ -63,6 +63,7 @@ func accessSecretVersion(name, version string) (string, error) {
 		return "", err
 	}
 
+	request.Header.Set("User-Agent", userAgent)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
 
 	response, err := http.DefaultClient.Do(request)

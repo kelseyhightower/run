@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-const (
-	userAgent = "golang-run/0.0.1"
-)
-
 var metadataEndpoint = "http://metadata.google.internal"
 
 // MetadataError reports an error and the endpoint that caused it.
