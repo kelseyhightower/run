@@ -46,6 +46,47 @@ func main() {
 }
 ```
 
+### Service Authentication
+
+run takes the pain out of [service-to-service authentication](https://cloud.google.com/run/docs/authenticating/service-to-service)
+
+```Go
+package main
+
+import (
+    "log"
+    "net/http"
+
+    "github.com/kelseyhightower/run"
+)
+
+func main() {
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        request, err := http.NewRequest("GET", "https://example-6bn2iswfgq-uw.a.run.app", nil)
+        if err != nil {
+            http.Error(w, err.Error(), 500)
+            return
+        }
+
+        // Use the run.Transport to automatically attach ID tokens to outbound requests
+        // and optionally expand service names using the Cloud Run API.
+        // See https://pkg.go.dev/github.com/kelseyhightower/run?tab=doc#Transport
+        client := http.Client{Transport: &run.Transport{EnableServiceNameResolution: false}}
+
+        response, err := client.Do(request)
+        if err != nil {
+            http.Error(w, err.Error(), 500)
+            return
+        }
+        defer response.Body.Close()
+
+        // Do something with response.
+    })
+
+    log.Fatal(run.ListenAndServe(nil))
+}
+```
+
 ## Status
 
 This package is experimental and should not be used or assumed to be stable. Breaking changes are guaranteed to happen.
