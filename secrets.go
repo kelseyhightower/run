@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 var (
@@ -66,17 +67,19 @@ func accessSecretVersion(name, version string) (string, error) {
 	request.Header.Set("User-Agent", userAgent)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
 
-	response, err := http.DefaultClient.Do(request)
+	timeout := time.Duration(5) * time.Second
+	httpClient := http.Client{Timeout: timeout}
+
+	response, err := httpClient.Do(request)
 	if err != nil {
 		return "", err
 	}
+	defer response.Body.Close()
 
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return "", err
 	}
-
-	defer response.Body.Close()
 
 	var s SecretVersion
 	err = json.Unmarshal(data, &s)

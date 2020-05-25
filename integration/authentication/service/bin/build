@@ -3,9 +3,11 @@
 PROJECT_ID=$(gcloud config get-value project)
 
 cd frontend
+go mod vendor
 gcloud builds submit -t gcr.io/${PROJECT_ID}/run-frontend:0.0.1 .
 
 cd -
 cd backend
+go mod vendor
 gcloud builds submit -t gcr.io/${PROJECT_ID}/run-backend:0.0.1 .
 

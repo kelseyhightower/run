@@ -2,5 +2,7 @@
 
 PROJECT_ID=$(gcloud config get-value project)
 
+go mod vendor
+
 gcloud builds submit \
   -t gcr.io/${PROJECT_ID}/run-metadata-integration-test:0.0.1 .

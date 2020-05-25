@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 var cloudrunEndpoint = "https://%s-run.googleapis.com"
@@ -98,18 +99,22 @@ func getService(name, region, project string) (*Service, error) {
 		return nil, err
 	}
 
+	request.Header.Set("User-Agent", userAgent)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
 
-	httpClient := &http.Client{}
+	timeout := time.Duration(5) * time.Second
+	httpClient := &http.Client{Timeout: timeout}
+
 	response, err := httpClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 
 	switch s := response.StatusCode; s {
 	case 200:
 		break
-	case 401:
+	case 401, 403:
 		return nil, &NameResolutionPermissionError{endpoint, name, s}
 	case 404:
 		return nil, &ServiceNotFoundError{endpoint, name}

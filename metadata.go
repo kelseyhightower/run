@@ -121,12 +121,13 @@ func httpRequest(endpoint string) ([]byte, error) {
 	request.Header.Add("Metadata-Flavor", "Google")
 
 	timeout := time.Duration(3) * time.Second
-	client := http.Client{Timeout: timeout}
+	httpClient := http.Client{Timeout: timeout}
 
-	response, err := client.Do(request)
+	response, err := httpClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
 		return nil, &MetadataError{Response: response}
@@ -136,8 +137,6 @@ func httpRequest(endpoint string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	defer response.Body.Close()
 
 	return data, nil
 }
