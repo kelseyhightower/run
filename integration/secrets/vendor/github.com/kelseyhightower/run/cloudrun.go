@@ -1,7 +1,6 @@
 package run
 
 import (
-	"errors"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +8,41 @@ import (
 )
 
 var cloudrunEndpoint = "https://%s-run.googleapis.com"
+
+// NameResolutionPermissionError is returned when service name
+// resolution fails to authenticate with the Cloud Run API.
+type NameResolutionPermissionError struct {
+	Endpoint   string
+	Name       string
+	StatusCode int
+}
+
+func (e *NameResolutionPermissionError) Error() string {
+	return "permission denied"
+}
+
+// ServiceNotFoundError is returned when a service does not exist
+// in the Cloud Run API.
+type ServiceNotFoundError struct {
+	Endpoint string
+	Name     string
+}
+
+func (e *ServiceNotFoundError) Error() string {
+	return "not found"
+}
+
+// NameResolutionError is returned when service name resolution
+// against the Cloud Run API fails for an unknown reason.
+type NameResolutionError struct {
+	Endpoint   string
+	Name       string
+	StatusCode int
+}
+
+func (e *NameResolutionError) Error() string {
+	return fmt.Sprintf("error resolving service name %s", e.Name)
+}
 
 // Service represents a Cloud Run service.
 type Service struct {
@@ -66,13 +100,21 @@ func getService(name, region, project string) (*Service, error) {
 
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
 
-	response, err := http.DefaultClient.Do(request)
+	httpClient := &http.Client{}
+	response, err := httpClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
 
-	if response.StatusCode != 200 {
-		return nil, errors.New("run: error resolving service name")
+	switch s := response.StatusCode; s {
+	case 200:
+		break
+	case 401:
+		return nil, &NameResolutionPermissionError{endpoint, name, s}
+	case 404:
+		return nil, &ServiceNotFoundError{endpoint, name}
+	default:
+		return nil, &NameResolutionError{endpoint, name, s}
 	}
 
 	var service Service
