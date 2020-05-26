@@ -3,6 +3,7 @@ package run
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,6 +13,33 @@ import (
 var (
 	secretmanagerEndpoint = "https://secretmanager.googleapis.com/v1"
 )
+
+// ErrSecretPermissionDenied is returned when access to a secret is denied.
+var ErrSecretPermissionDenied = errors.New("run: permission denied to named secret")
+
+// ErrSecretUnauthorized is returned when calls to the Secret
+// Manager API are unauthorized.
+var ErrSecretUnauthorized = errors.New("run: secret manager unauthorized")
+
+// ErrSecretNotFound is returned when a secret is not found.
+var ErrSecretNotFound = errors.New("run: named secret not found")
+
+// ErrSecretUnknownError is return when calls to the Secret Manager
+// API return an unknown error.
+var ErrSecretUnknownError = errors.New("run: unexpected error retrieving named secret")
+
+// ErrSecretUnexpectedResponse is returned when calls to the Secret Manager
+// API return an unexpected response.
+type ErrSecretUnexpectedResponse struct {
+	StatusCode int
+	Err        error
+}
+
+func (e *ErrSecretUnexpectedResponse) Error() string {
+	return "run: unexpected error retrieving named secret"
+}
+
+func (e *ErrSecretUnexpectedResponse) Unwrap() error { return e.Err }
 
 // SecretVersion represents a Google Cloud Secret.
 type SecretVersion struct {
@@ -75,6 +103,19 @@ func accessSecretVersion(name, version string) (string, error) {
 		return "", err
 	}
 	defer response.Body.Close()
+
+	switch s := response.StatusCode; s {
+	case 200:
+		break
+	case 401:
+		return "", ErrSecretUnauthorized
+	case 403:
+		return "", ErrSecretPermissionDenied
+	case 404:
+		return "", ErrSecretNotFound
+	default:
+		return "", &ErrSecretUnexpectedResponse{s, ErrSecretUnknownError}
+	}
 
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {

@@ -2,6 +2,7 @@ package run
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,40 +11,33 @@ import (
 
 var cloudrunEndpoint = "https://%s-run.googleapis.com"
 
-// NameResolutionPermissionError is returned when service name
-// resolution fails to authenticate with the Cloud Run API.
-type NameResolutionPermissionError struct {
-	Endpoint   string
-	Name       string
+// ErrNameResolutionPermissionDenied is returned when access to the
+// Cloud Run API is denied.
+var ErrNameResolutionPermissionDenied = errors.New("run: permission denied to named service")
+
+// ErrNameResolutionUnauthorized is returned when calls to the Cloud
+// Run API are unauthorized.
+var ErrNameResolutionUnauthorized = errors.New("run: cloud run api unauthorized")
+
+// ErrServiceNotFound is returned when a service is not found..
+var ErrServiceNotFound = errors.New("run: named service not found")
+
+// ErrNameResolutionUnknownError is return when calls to the Cloud Run
+// API return an unknown error.
+var ErrNameResolutionUnknownError = errors.New("run: unexpected error retrieving named service")
+
+// ErrNameResolutionUnexpectedResponse is returned when calls to the Cloud Run
+// API return an unexpected response.
+type ErrNameResolutionUnexpectedResponse struct {
 	StatusCode int
+	Err        error
 }
 
-func (e *NameResolutionPermissionError) Error() string {
-	return "permission denied"
+func (e *ErrNameResolutionUnexpectedResponse) Error() string {
+	return "run: unexpected error retrieving named service"
 }
 
-// ServiceNotFoundError is returned when a service does not exist
-// in the Cloud Run API.
-type ServiceNotFoundError struct {
-	Endpoint string
-	Name     string
-}
-
-func (e *ServiceNotFoundError) Error() string {
-	return "not found"
-}
-
-// NameResolutionError is returned when service name resolution
-// against the Cloud Run API fails for an unknown reason.
-type NameResolutionError struct {
-	Endpoint   string
-	Name       string
-	StatusCode int
-}
-
-func (e *NameResolutionError) Error() string {
-	return fmt.Sprintf("error resolving service name %s", e.Name)
-}
+func (e *ErrNameResolutionUnexpectedResponse) Unwrap() error { return e.Err }
 
 // Service represents a Cloud Run service.
 type Service struct {
@@ -114,12 +108,14 @@ func getService(name, region, project string) (*Service, error) {
 	switch s := response.StatusCode; s {
 	case 200:
 		break
-	case 401, 403:
-		return nil, &NameResolutionPermissionError{endpoint, name, s}
+	case 401:
+		return nil, ErrNameResolutionUnauthorized
+	case 403:
+		return nil, ErrNameResolutionPermissionDenied
 	case 404:
-		return nil, &ServiceNotFoundError{endpoint, name}
+		return nil, ErrServiceNotFound
 	default:
-		return nil, &NameResolutionError{endpoint, name, s}
+		return nil, &ErrNameResolutionUnexpectedResponse{s, ErrNameResolutionUnknownError}
 	}
 
 	var service Service
