@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+var serviceCache *cache
+
+func init() {
+	data := make(map[string]string)
+	serviceCache = &cache{data}
+}
+
 // Transport is an http.RoundTripper that attaches ID tokens to all
 // all outgoing request.
 type Transport struct {
@@ -51,12 +58,19 @@ func resolveServiceName(r *http.Request) error {
 		serviceName = parts[0]
 	}
 
-	service, err := getService(serviceName, region, project)
-	if err != nil {
-		return err
+	var u *url.URL
+	endpoint := serviceCache.Get(serviceName)
+	if endpoint == "" {
+		service, err := getService(serviceName, region, project)
+		if err != nil {
+			return fmt.Errorf("run: error resolving service name: %w", err)
+		}
+
+		endpoint = service.Status.Address.URL
+		serviceCache.Set(serviceName, endpoint)
 	}
 
-	u, err := url.Parse(service.Status.Address.URL)
+	u, err := url.Parse(endpoint)
 	if err != nil {
 		return err
 	}

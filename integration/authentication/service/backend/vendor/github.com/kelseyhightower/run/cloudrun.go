@@ -60,6 +60,9 @@ type ServiceAddresss struct {
 }
 
 func regionalEndpoint(region string) string {
+	if region == "test" {
+		return cloudrunEndpoint
+	}
 	return fmt.Sprintf(cloudrunEndpoint, region)
 }
 

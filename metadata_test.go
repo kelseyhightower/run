@@ -10,8 +10,8 @@ import (
 const (
 	testID               = "00bf4bf02db3546595153c211fec26b688516bf1b609f7d5e2f5d9ae17d1bcbaf6ce6c0c1b1168abf1ab255125e84e085336a36ae5715b0f95e7"
 	testNumericProjectID = "123456789"
-	testProjectID        = "test-project-id"
-	testRegion           = "us-test1"
+	testProjectID        = "test"
+	testRegion           = "test"
 )
 
 const testAccessToken = `{
