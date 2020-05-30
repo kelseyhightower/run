@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/kelseyhightower/run/internal/gcptest"
 )
 
 func TestTransport(t *testing.T) {
-	ms := httptest.NewServer(http.HandlerFunc(metadataHandler))
+	ms := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
 	defer ms.Close()
 
 	metadataEndpoint = ms.URL
@@ -29,7 +31,7 @@ func TestTransport(t *testing.T) {
 	defer response.Body.Close()
 
 	authHeader := headers.Get("Authorization")
-	expectedAuthHeader := fmt.Sprintf("Bearer %s", testIDToken)
+	expectedAuthHeader := fmt.Sprintf("Bearer %s", gcptest.IDToken)
 
 	if authHeader != expectedAuthHeader {
 		t.Errorf("headers mismatch; want %s, got %s", expectedAuthHeader, authHeader)
@@ -37,7 +39,7 @@ func TestTransport(t *testing.T) {
 }
 
 func TestTransportEnableServiceNameResolution(t *testing.T) {
-	ms := httptest.NewServer(http.HandlerFunc(metadataHandler))
+	ms := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
 	defer ms.Close()
 
 	metadataEndpoint = ms.URL
@@ -52,7 +54,7 @@ func TestTransportEnableServiceNameResolution(t *testing.T) {
 		"test": ts.URL,
 	}
 
-	crs := httptest.NewServer(cloudrunServer(services))
+	crs := httptest.NewServer(gcptest.CloudrunServer(services))
 	defer crs.Close()
 
 	cloudrunEndpoint = crs.URL

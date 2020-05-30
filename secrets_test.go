@@ -2,44 +2,12 @@ package run
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-
 	"testing"
+
+	"github.com/kelseyhightower/run/internal/gcptest"
 )
-
-var fooSecret = `{
-  "name": "projects/123456789/secrets/foo/versions/1",
-  "payload": {
-    "data": "VGVzdA=="
-  }
-}`
-
-func secretsHandler(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-
-	if path == "/projects/123456789/secrets/unexpected/versions/latest:access" {
-		http.Error(w, "", 500)
-	}
-
-	if path == "/projects/123456789/secrets/unauthorized/versions/latest:access" {
-		http.Error(w, "", 401)
-	}
-
-	if path == "/projects/123456789/secrets/denied/versions/latest:access" {
-		http.Error(w, "", 403)
-	}
-
-	if path == "/projects/123456789/secrets/bar/versions/latest:access" {
-		http.NotFound(w, r)
-	}
-
-	if path == "/projects/123456789/secrets/foo/versions/latest:access" {
-		fmt.Fprint(w, fooSecret)
-		return
-	}
-}
 
 var accessSecretTests = []struct {
 	name string
@@ -54,12 +22,12 @@ var accessSecretTests = []struct {
 }
 
 func TestAccessSecret(t *testing.T) {
-	ms := httptest.NewServer(http.HandlerFunc(metadataHandler))
+	ms := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
 	defer ms.Close()
 
 	metadataEndpoint = ms.URL
 
-	ss := httptest.NewServer(http.HandlerFunc(secretsHandler))
+	ss := httptest.NewServer(http.HandlerFunc(gcptest.SecretsHandler))
 	defer ss.Close()
 
 	secretmanagerEndpoint = ss.URL
