@@ -3,10 +3,13 @@ package run
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // An LogEntry represents a Stackdriver log entry.
@@ -45,6 +48,8 @@ func (le LogEntry) String() string {
 // Stackdriver integration.
 type Logger struct {
 	projectID string
+	mu        sync.Mutex
+	out       io.Writer
 }
 
 // NewLogger creates a new Logger.
@@ -54,7 +59,13 @@ func NewLogger() (*Logger, error) {
 		return nil, err
 	}
 
-	return &Logger{projectID: projectID}, nil
+	return &Logger{projectID: projectID, out: os.Stdout}, nil
+}
+
+func (l *Logger) SetOutput(w io.Writer) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.out = w
 }
 
 // Info formats using the default formats for its operands and writes to standard output.
@@ -138,5 +149,5 @@ func (l *Logger) Log(severity string, v ...interface{}) {
 		SourceLocation: sourceLocation,
 	}
 
-	fmt.Println(e)
+	io.WriteString(l.out, e.String())
 }
