@@ -49,6 +49,7 @@ func (le LogEntry) String() string {
 type Logger struct {
 	projectID string
 	mu        sync.Mutex
+	buf       []byte
 	out       io.Writer
 }
 
@@ -123,6 +124,9 @@ func extractTraceID(v interface{}) string {
 // for more details.
 func (l *Logger) Log(severity string, v ...interface{}) {
 	var trace string
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	traceID := extractTraceID(v[0])
 
 	if traceID != "" {
@@ -149,5 +153,7 @@ func (l *Logger) Log(severity string, v ...interface{}) {
 		SourceLocation: sourceLocation,
 	}
 
-	io.WriteString(l.out, e.String())
+	l.buf = l.buf[:0]
+	l.buf = append(l.buf, e.String()...)
+	l.out.Write(l.buf)
 }
