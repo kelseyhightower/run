@@ -43,3 +43,24 @@ func TestAccessSecret(t *testing.T) {
 		}
 	}
 }
+
+func TestAccessSecretVersion(t *testing.T) {
+	ms := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
+	defer ms.Close()
+
+	metadataEndpoint = ms.URL
+
+	ss := httptest.NewServer(http.HandlerFunc(gcptest.SecretsHandler))
+	defer ss.Close()
+
+	secretmanagerEndpoint = ss.URL
+
+	secret, err := AccessSecretVersion("foo", "1")
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if secret != "Test" {
+		t.Errorf("want %s, got %s", "Test", secret)
+	}
+}

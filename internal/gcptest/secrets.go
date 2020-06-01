@@ -31,6 +31,11 @@ func SecretsHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	}
 
+	if path == "/projects/123456789/secrets/foo/versions/1:access" {
+		fmt.Fprint(w, fooSecret)
+		return
+	}
+
 	if path == "/projects/123456789/secrets/foo/versions/latest:access" {
 		fmt.Fprint(w, fooSecret)
 		return
