@@ -7,14 +7,38 @@ import (
 	"github.com/kelseyhightower/run"
 )
 
-func ExampleTransport() {
-	client := &http.Client{Transport: &run.Transport{}}
-
-	_, err := client.Get("https://example-6bn2iswfgq-uw.a.run.app")
+func ExampleAccessSecret() {
+	secret, err := run.AccessSecret("apikey")
 	if err != nil {
 		log.Println(err)
 		return
 	}
+
+	//
+	_ = secret
+}
+
+func ExampleAccessSecretVersion() {
+	secret, err := run.AccessSecretVersion("apikey", "1")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	//
+	_ = secret
+}
+
+func ExampleTransport() {
+	client := &http.Client{Transport: &run.Transport{}}
+
+	response, err := client.Get("https://example-6bn2iswfgq-uw.a.run.app")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	defer response.Body.Close()
 }
 
 func ExampleTransport_serviceNameResolution() {
@@ -24,9 +48,11 @@ func ExampleTransport_serviceNameResolution() {
 		},
 	}
 
-	_, err := client.Get("https://service-name")
+	response, err := client.Get("https://service-name")
 	if err != nil {
 		log.Println(err)
 		return
 	}
+
+	defer response.Body.Close()
 }
