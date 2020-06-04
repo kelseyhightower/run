@@ -19,16 +19,13 @@ var envTests = []struct {
 
 func TestEnv(t *testing.T) {
 	for _, tt := range envTests {
-		t.Run(tt.n, func(t *testing.T) {
-			if err := os.Setenv(tt.e, tt.want); err != nil {
-				t.Error(err)
-			}
+		if err := os.Setenv(tt.e, tt.want); err != nil {
+			t.Error(err)
+		}
 
-			got := tt.f()
-			if got != tt.want {
-				t.Errorf("want %v got %v", tt.want, got)
-			}
-		})
+		v := tt.f()
+		if v != tt.want {
+			t.Errorf("want %v got %v", tt.want, v)
+		}
 	}
 }
-
