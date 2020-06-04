@@ -92,7 +92,7 @@ func IDToken(serviceURL string) (string, error) {
 
 	idToken, err := metadataRequest(endpoint)
 	if err != nil {
-		return "", fmt.Errorf("metadata.Get: failed to query id_token: %+v", err)
+		return "", fmt.Errorf("metadata.Get: failed to query id_token: %w", err)
 	}
 	return string(idToken), nil
 }

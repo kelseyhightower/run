@@ -1,6 +1,7 @@
 package gcptest
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -12,15 +13,34 @@ const (
 	Region           = "test"
 )
 
-const AccessToken = `{
-  "access_token": "ya29.AHES6ZRVmB7fkLtd1XTmq6mo0S1wqZZi3-Lh_s-6Uw7p8vtgSwg",
-  "expires_in": 3484,
-  "token_type": "Bearer"
-}`
+var AccessToken = AccessTokenResponse{
+	AccessToken: "ya29.AHES6ZRVmB7fkLtd1XTmq6mo0S1wqZZi3-Lh_s-6Uw7p8vtgSwg",
+	ExpiresIn:   3484,
+	TokenType:   "Bearer",
+}
+
+// AccessTokenResponse holds a GCP access token.
+type AccessTokenResponse struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int64  `json:"expires_in"`
+	TokenType   string `json:"token_type"`
+}
 
 const (
 	IDToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.Et9HFtf9R3GEMA0IICOfFMVXY7kkTX1wr4qCyhIf58U"
 )
+
+func BrokenMetadataHandler(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
+	if path == "/computeMetadata/v1/instance/service-accounts/default/token" {
+		w.Write([]byte("{\"broken\""))
+		return
+	}
+
+	http.Error(w, "", 500)
+	return
+}
 
 func MetadataHandler(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
@@ -36,14 +56,14 @@ func MetadataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if path == "/computeMetadata/v1/invalid" {
-        http.Error(w, "", 400)
-        return
-    }
+		http.Error(w, "", 400)
+		return
+	}
 
 	if path == "/computeMetadata/v1/unknown" {
-        http.Error(w, "", 500)
-        return
-    }
+		http.Error(w, "", 500)
+		return
+	}
 
 	if path == "/computeMetadata/v1/project/project-id" {
 		fmt.Fprint(w, ProjectID)
@@ -66,7 +86,13 @@ func MetadataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if path == "/computeMetadata/v1/instance/service-accounts/default/token" {
-		fmt.Fprint(w, AccessToken)
+		data, err := json.Marshal(AccessToken)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		w.Write(data)
 		return
 	}
 
