@@ -1,6 +1,8 @@
 package run
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,82 +10,60 @@ import (
 	"github.com/kelseyhightower/run/internal/gcptest"
 )
 
-func TestID(t *testing.T) {
+var metadataTests = []struct {
+	name string
+	want string
+	err  error
+}{
+	{"id", gcptest.ID, nil},
+	{"idtoken", gcptest.IDToken, nil},
+	{"projectid", gcptest.ProjectID, nil},
+	{"numericprojectid", gcptest.NumericProjectID, nil},
+	{"region", gcptest.Region, nil},
+	{"notfound", "", ErrMetadataNotFound},
+	{"invalid", "", ErrMetadataInvalidRequest},
+	{"unknown", "", ErrMetadataUnknownError},
+}
+
+func TestMetadata(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
 	defer ts.Close()
 
 	metadataEndpoint = ts.URL
 
-	id, err := ID()
-	if err != nil {
-		t.Error(err)
-	}
+	for _, tt := range metadataTests {
+		var (
+			err error
+			v   string
+		)
 
-	if id != gcptest.ID {
-		t.Errorf("got id %v, want %v", id, gcptest.ID)
+		switch tt.name {
+		case "id":
+			v, err = ID()
+		case "idtoken":
+			v, err = IDToken("https://test-0123456789-ue.a.run.app")
+		case "projectid":
+			v, err = ProjectID()
+		case "numericprojectid":
+			v, err = NumericProjectID()
+		case "region":
+			v, err = Region()
+		default:
+			v, err = errorMetadataRequest(tt.name)
+		}
+
+		if !errors.Is(err, tt.err) {
+			t.Error(err)
+		}
+
+		if v != tt.want {
+			t.Errorf("got id %v, want %v", v, tt.want)
+		}
 	}
 }
 
-func TestProjectID(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
-	defer ts.Close()
-
-	metadataEndpoint = ts.URL
-
-	id, err := ProjectID()
-	if err != nil {
-		t.Error(err)
-	}
-
-	if id != gcptest.ProjectID {
-		t.Errorf("got project id %v, want %v", id, gcptest.ProjectID)
-	}
-}
-
-func TestProjectNumber(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
-	defer ts.Close()
-
-	metadataEndpoint = ts.URL
-
-	id, err := NumericProjectID()
-	if err != nil {
-		t.Error(err)
-	}
-
-	if id != gcptest.NumericProjectID {
-		t.Errorf("got numeric project id %v, want %v", id, gcptest.NumericProjectID)
-	}
-}
-
-func TestRegion(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
-	defer ts.Close()
-
-	metadataEndpoint = ts.URL
-
-	region, err := Region()
-	if err != nil {
-		t.Error(err)
-	}
-
-	if region != gcptest.Region {
-		t.Errorf("got region %v, want %v", region, gcptest.Region)
-	}
-}
-
-func TestIDToken(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
-	defer ts.Close()
-
-	metadataEndpoint = ts.URL
-
-	token, err := IDToken("https://test-0123456789-ue.a.run.app")
-	if err != nil {
-		t.Error(err)
-	}
-
-	if token != gcptest.IDToken {
-		t.Errorf("got token %v, want %v", token, gcptest.IDToken)
-	}
+func errorMetadataRequest(key string) (string, error) {
+	endpoint := fmt.Sprintf("%s/computeMetadata/v1/%s", metadataEndpoint, key)
+	v, err := metadataRequest(endpoint)
+	return string(v), err
 }

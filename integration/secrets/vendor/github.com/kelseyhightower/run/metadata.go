@@ -2,6 +2,7 @@ package run
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,18 +13,28 @@ import (
 
 var metadataEndpoint = "http://metadata.google.internal"
 
-// MetadataError reports an error and the endpoint that caused it.
-type MetadataError struct {
-	Response *http.Response
+// ErrMetadataNotFound is returned when a metadata key is not found.
+var ErrMetadataNotFound = errors.New("run: metadata key not found")
+
+// ErrMetadataInvalidRequest is returned when a metadata request is invalid.
+var ErrMetadataInvalidRequest = errors.New("run: invalid metadata request")
+
+// ErrMetadataUnknownError is return when calls to the metadata server
+// return an unknown error.
+var ErrMetadataUnknownError = errors.New("run: unexpected error retrieving metadata key")
+
+// ErrMetadataUnexpectedResponse is returned when calls to the metadata server
+// return an unexpected response.
+type ErrMetadataUnexpectedResponse struct {
+	StatusCode int
+	Err        error
 }
 
-func (e *MetadataError) Error() string {
-	if e.Response.StatusCode == 404 {
-		return fmt.Sprintf("run/metadata: %s not found", e.Response.Request.URL)
-	}
-
-	return fmt.Sprintf("run/metadata: http error %s", e.Response.Status)
+func (e *ErrMetadataUnexpectedResponse) Error() string {
+	return "run: unexpected error retrieving metadata key"
 }
+
+func (e *ErrMetadataUnexpectedResponse) Unwrap() error { return e.Err }
 
 // AccessToken holds a GCP access token.
 type AccessToken struct {
@@ -36,7 +47,7 @@ type AccessToken struct {
 func ProjectID() (string, error) {
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/project/project-id", metadataEndpoint)
 
-	data, err := httpRequest(endpoint)
+	data, err := metadataRequest(endpoint)
 	if err != nil {
 		return "", err
 	}
@@ -48,7 +59,7 @@ func ProjectID() (string, error) {
 func NumericProjectID() (string, error) {
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/project/numeric-project-id", metadataEndpoint)
 
-	data, err := httpRequest(endpoint)
+	data, err := metadataRequest(endpoint)
 	if err != nil {
 		return "", err
 	}
@@ -61,7 +72,7 @@ func Token(scopes []string) (*AccessToken, error) {
 	s := strings.Join(scopes, ",")
 
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/instance/service-accounts/default/token?scopes=%s", metadataEndpoint, s)
-	data, err := httpRequest(endpoint)
+	data, err := metadataRequest(endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +90,7 @@ func Token(scopes []string) (*AccessToken, error) {
 func IDToken(serviceURL string) (string, error) {
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/instance/service-accounts/default/identity?audience=%s", metadataEndpoint, serviceURL)
 
-	idToken, err := httpRequest(endpoint)
+	idToken, err := metadataRequest(endpoint)
 	if err != nil {
 		return "", fmt.Errorf("metadata.Get: failed to query id_token: %+v", err)
 	}
@@ -90,7 +101,7 @@ func IDToken(serviceURL string) (string, error) {
 func Region() (string, error) {
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/instance/region", metadataEndpoint)
 
-	data, err := httpRequest(endpoint)
+	data, err := metadataRequest(endpoint)
 	if err != nil {
 		return "", err
 	}
@@ -103,7 +114,7 @@ func Region() (string, error) {
 func ID() (string, error) {
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/instance/id", metadataEndpoint)
 
-	data, err := httpRequest(endpoint)
+	data, err := metadataRequest(endpoint)
 	if err != nil {
 		return "", err
 	}
@@ -111,7 +122,7 @@ func ID() (string, error) {
 	return string(data), nil
 }
 
-func httpRequest(endpoint string) ([]byte, error) {
+func metadataRequest(endpoint string) ([]byte, error) {
 	request, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -120,7 +131,7 @@ func httpRequest(endpoint string) ([]byte, error) {
 	request.Header.Set("User-Agent", userAgent)
 	request.Header.Add("Metadata-Flavor", "Google")
 
-	timeout := time.Duration(3) * time.Second
+	timeout := time.Duration(5) * time.Second
 	httpClient := http.Client{Timeout: timeout}
 
 	response, err := httpClient.Do(request)
@@ -129,8 +140,15 @@ func httpRequest(endpoint string) ([]byte, error) {
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != 200 {
-		return nil, &MetadataError{Response: response}
+	switch s := response.StatusCode; s {
+	case 200:
+		break
+	case 400:
+		return nil, ErrMetadataInvalidRequest
+	case 404:
+		return nil, ErrMetadataNotFound
+	default:
+		return nil, &ErrMetadataUnexpectedResponse{s, ErrMetadataUnknownError}
 	}
 
 	data, err := ioutil.ReadAll(response.Body)

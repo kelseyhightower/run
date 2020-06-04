@@ -30,6 +30,21 @@ func MetadataHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if path == "/computeMetadata/v1/notfound" {
+		http.NotFound(w, r)
+		return
+	}
+
+	if path == "/computeMetadata/v1/invalid" {
+        http.Error(w, "", 400)
+        return
+    }
+
+	if path == "/computeMetadata/v1/unknown" {
+        http.Error(w, "", 500)
+        return
+    }
+
 	if path == "/computeMetadata/v1/project/project-id" {
 		fmt.Fprint(w, ProjectID)
 		return

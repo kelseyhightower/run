@@ -1,4 +1,4 @@
-FROM golang:1.14.3-buster as go-builder
+FROM golang:1.14.4-buster as go-builder
 WORKDIR /module
 COPY . /module/
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
