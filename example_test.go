@@ -1,6 +1,7 @@
 package run_test
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -14,7 +15,6 @@ func ExampleAccessSecret() {
 		return
 	}
 
-	//
 	_ = secret
 }
 
@@ -25,8 +25,34 @@ func ExampleAccessSecretVersion() {
 		return
 	}
 
-	//
 	_ = secret
+}
+
+func ExampleIDToken() {
+	serviceURL := "https://example-6bn2iswfgq-uw.a.run.app"
+
+	request, err := http.NewRequest(http.MethodGet, serviceURL, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	idToken, err := run.IDToken(serviceURL)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", idToken))
+}
+
+func ExampleLogger() {
+	logger, err := run.NewLogger()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	logger.Notice("Starting example service...")
 }
 
 func ExampleTransport() {
