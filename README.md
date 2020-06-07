@@ -1,6 +1,6 @@
 # run
 
-[![GoDoc](https://godoc.org/github.com/kelseyhightower/run?status.svg)](https://pkg.go.dev/github.com/kelseyhightower/run)
+[![GoDoc](https://godoc.org/github.com/kelseyhightower/run?status.svg)](https://pkg.go.dev/github.com/kelseyhightower/run) ![CloudBuild](https://badger-6bn2iswfgq-ue.a.run.app/build/status?project=hightowerlabs&id=bb0129f8-02c4-490b-b37e-777215fdb7ca)
 
 The run package provides a set of Cloud Run helper functions and does not leverage any third party dependencies.
 
@@ -79,8 +79,6 @@ func main() {
             return
         }
         defer response.Body.Close()
-
-        // Do something with response.
     })
 
     log.Fatal(run.ListenAndServe(nil))
