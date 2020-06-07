@@ -46,6 +46,32 @@ func ExampleIDToken() {
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", idToken))
 }
 
+func ExampleToken() {
+	scopes := []string{"https://www.googleapis.com/auth/cloud-platform"}
+
+	project, err := run.ProjectID()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	endpoint := fmt.Sprintf("https://cloudbuild.googleapis.com/v1/projects/%s/builds", project)
+
+	request, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	token, err := run.Token(scopes)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
+}
+
 func ExampleLogger() {
 	logger, err := run.NewLogger()
 	if err != nil {
