@@ -1,0 +1,20 @@
+steps:
+  - name: golang
+    id: 'go-test'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+          go test -v
+  - name: golang
+    id: 'go-tool-cover'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+          go test -v -coverprofile=c.out
+          go tool cover -html=c.out -o coverage.html
+artifacts:
+  objects:
+    location: 'gs://hightowerlabs/run'
+    paths: ['coverage.html']

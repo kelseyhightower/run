@@ -16,10 +16,7 @@ type Result struct {
 }
 
 func main() {
-	logger, err := run.NewLogger()
-	if err != nil {
-		log.Fatal(err)
-	}
+	logger := run.NewLogger()
 
 	logger.Notice("Starting metadata integration tests...")
 

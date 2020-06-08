@@ -4,19 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 )
+
+var DefaultLogger = &Logger{out: os.Stdout}
 
 // An LogEntry represents a Stackdriver log entry.
 type LogEntry struct {
 	Message        string                  `json:"message"`
 	Severity       string                  `json:"severity,omitempty"`
-	Trace          string                  `json:"logging.googleapis.com/trace,omitempty"`
 	Component      string                  `json:"component,omitempty"`
 	SourceLocation *LogEntrySourceLocation `json:"logging.googleapis.com/sourceLocation,omitempty"`
 }
@@ -47,20 +46,14 @@ func (le LogEntry) String() string {
 // log entries to standard out. Logs are formatted as expected by Cloud Run's
 // Stackdriver integration.
 type Logger struct {
-	projectID string
-	mu        sync.Mutex
-	buf       []byte
-	out       io.Writer
+	mu  sync.Mutex
+	buf []byte
+	out io.Writer
 }
 
 // NewLogger creates a new Logger.
-func NewLogger() (*Logger, error) {
-	projectID, err := ProjectID()
-	if err != nil {
-		return nil, err
-	}
-
-	return &Logger{projectID: projectID, out: os.Stdout}, nil
+func NewLogger() *Logger {
+	return &Logger{out: os.Stdout}
 }
 
 func (l *Logger) SetOutput(w io.Writer) {
@@ -69,7 +62,7 @@ func (l *Logger) SetOutput(w io.Writer) {
 	l.out = w
 }
 
-// Info formats using the default formats for its operands and writes to standard output.
+// Info formats using the default formats for its operands.
 //
 // Logs are written in the Stackdriver structured logging format with the severity level
 // set to INFO.
@@ -77,7 +70,7 @@ func (l *Logger) Info(v ...interface{}) {
 	l.Log("INFO", v...)
 }
 
-// Error formats using the default formats for its operands and writes to standard output.
+// Error formats using the default formats for its operands.
 //
 // Logs are written in the Stackdriver structured logging format with the severity level
 // set to ERROR.
@@ -85,7 +78,7 @@ func (l *Logger) Error(v ...interface{}) {
 	l.Log("ERROR", v...)
 }
 
-// Notice formats using the default formats for its operands and writes to standard output.
+// Notice formats using the default formats for its operands.
 //
 // Logs are written in the Stackdriver structured logging format with the severity level
 // set to NOTICE.
@@ -93,29 +86,10 @@ func (l *Logger) Notice(v ...interface{}) {
 	l.Log("NOTICE", v...)
 }
 
-func extractTraceID(v interface{}) string {
-	var trace string
-
-	switch t := v.(type) {
-	case *http.Request:
-		traceHeader := t.Header.Get("X-Cloud-Trace-Context")
-		ts := strings.Split(traceHeader, "/")
-		if len(ts) > 0 && len(ts[0]) > 0 {
-			trace = ts[0]
-		}
-	default:
-		trace = ""
-	}
-
-	return trace
-}
-
 // Log writes logging events with the given severity.
 //
 // Log formats it's operands using the default format for each value and
-// combines the results in to a single log message. If the first value is
-// an *http.Request, the X-Cloud-Trace-Context HTTP header will be extracted
-// and included in the Stackdriver log entry.
+// combines the results in to a single log message.
 //
 // Source file location data will be included in log entires.
 //
@@ -123,18 +97,8 @@ func extractTraceID(v interface{}) string {
 // format. See https://cloud.google.com/logging/docs/structured-logging
 // for more details.
 func (l *Logger) Log(severity string, v ...interface{}) {
-	var trace string
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
-	traceID := extractTraceID(v[0])
-
-	if traceID != "" {
-		// The first argument was an *http.Request or context object
-		// and is not part of the message
-		v = v[1:]
-		trace = fmt.Sprintf("projects/%s/traces/%s", l.projectID, traceID)
-	}
 
 	var sourceLocation *LogEntrySourceLocation
 	pc, file, line, ok := runtime.Caller(2)
@@ -149,7 +113,6 @@ func (l *Logger) Log(severity string, v ...interface{}) {
 	e := LogEntry{
 		Message:        fmt.Sprint(v...),
 		Severity:       severity,
-		Trace:          trace,
 		SourceLocation: sourceLocation,
 	}
 

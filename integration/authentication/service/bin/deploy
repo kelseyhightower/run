@@ -4,7 +4,7 @@ gcloud run deploy run-frontend \
   --allow-unauthenticated \
   --args='--backend-service-url=https://run-backend/' \
   --cpu 1 \
-  --image gcr.io/hightowerlabs/run-frontend:0.0.11 \
+  --image gcr.io/hightowerlabs/run-frontend:0.0.14 \
   --memory "128Mi" \
   --platform managed \
   --region us-west1 \
@@ -13,7 +13,7 @@ gcloud run deploy run-frontend \
 gcloud run deploy run-backend \
   --allow-unauthenticated \
   --cpu 1 \
-  --image gcr.io/hightowerlabs/run-backend:0.0.11 \
+  --image gcr.io/hightowerlabs/run-backend:0.0.14 \
   --memory "128Mi" \
   --platform managed \
   --region us-west1 \

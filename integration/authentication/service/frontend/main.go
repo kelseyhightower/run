@@ -18,10 +18,7 @@ func main() {
 	flag.StringVar(&backendServiceURL, "backend-service-url", "", "The backend service URL")
 	flag.Parse()
 
-	logger, err := run.NewLogger()
-	if err != nil {
-		log.Fatal(err)
-	}
+	logger := run.NewLogger()
 
 	logger.Notice("Starting frontend service...")
 

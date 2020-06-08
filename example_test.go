@@ -73,12 +73,13 @@ func ExampleToken() {
 }
 
 func ExampleLogger() {
-	logger, err := run.NewLogger()
-	if err != nil {
-		log.Fatal(err)
-	}
+	logger := run.NewLogger()
 
 	logger.Notice("Starting example service...")
+}
+
+func ExampleLogger_defaultLogger() {
+	run.DefaultLogger.Notice("Starting example service...")
 }
 
 func ExampleTransport() {
