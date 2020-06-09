@@ -10,7 +10,6 @@ The run package provides a set of Cloud Run helper functions and does not levera
 package main
 
 import (
-    "log"
     "net/http"
     "os"
 
@@ -19,24 +18,27 @@ import (
 
 func main() {
     // Generates structured logs optimized for Cloud Run.
-    run.DefaultLogger.Notice("Starting helloworld service...")
+    run.Notice("Starting helloworld service...")
 
     // Easy access to secrets stored in Secret Manager.
     secret, err := run.AccessSecret("foo")
     if err != nil {
-        run.DefaultLogger.Error(err)
-        os.Exit(1)
+        run.Fatal(err)
     }
 
     _ = secret
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        // Optionally pass in the *http.Request as the first argument
+        // to correlate container logs with request logs.
+        run.Info(r, "handling http request")
+
         w.Write([]byte("Hello world!\n"))
     })
 
     // Start an HTTP server listening on the address defined
     // by the Cloud Run container runtime contract.
-    log.Fatal(run.ListenAndServe(nil))
+    run.Fatal(run.ListenAndServe(nil))
 }
 ```
 
@@ -48,7 +50,6 @@ run takes the pain out of [service-to-service authentication](https://cloud.goog
 package main
 
 import (
-    "log"
     "net/http"
 
     "github.com/kelseyhightower/run"
@@ -75,7 +76,7 @@ func main() {
         defer response.Body.Close()
     })
 
-    log.Fatal(run.ListenAndServe(nil))
+    run.Fatal(run.ListenAndServe(nil))
 }
 ```
 

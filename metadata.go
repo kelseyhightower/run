@@ -8,7 +8,17 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"sync"
 	"time"
+)
+
+var rmu sync.Mutex
+
+var (
+	runtimeID               string
+	runtimeProjectID        string
+	runtimeRegion           string
+	runtimeNumericProjectID string
 )
 
 var metadataEndpoint = "http://metadata.google.internal"
@@ -45,6 +55,13 @@ type AccessToken struct {
 
 // ProjectID returns the active project ID from the metadata service.
 func ProjectID() (string, error) {
+	rmu.Lock()
+	defer rmu.Unlock()
+
+	if runtimeProjectID != "" {
+		return runtimeProjectID, nil
+	}
+
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/project/project-id", metadataEndpoint)
 
 	data, err := metadataRequest(endpoint)
@@ -52,11 +69,19 @@ func ProjectID() (string, error) {
 		return "", err
 	}
 
-	return string(data), nil
+	runtimeProjectID = string(data)
+	return runtimeProjectID, nil
 }
 
 // NumericProjectID returns the active project ID from the metadata service.
 func NumericProjectID() (string, error) {
+	rmu.Lock()
+	defer rmu.Unlock()
+
+	if runtimeNumericProjectID != "" {
+		return runtimeNumericProjectID, nil
+	}
+
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/project/numeric-project-id", metadataEndpoint)
 
 	data, err := metadataRequest(endpoint)
@@ -64,7 +89,8 @@ func NumericProjectID() (string, error) {
 		return "", err
 	}
 
-	return string(data), nil
+	runtimeNumericProjectID = string(data)
+	return runtimeNumericProjectID, nil
 }
 
 // Token returns the default service account token.
@@ -99,6 +125,13 @@ func IDToken(serviceURL string) (string, error) {
 
 // Region returns the name of the Cloud Run region.
 func Region() (string, error) {
+	rmu.Lock()
+	defer rmu.Unlock()
+
+	if runtimeRegion != "" {
+		return runtimeRegion, nil
+	}
+
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/instance/region", metadataEndpoint)
 
 	data, err := metadataRequest(endpoint)
@@ -106,12 +139,19 @@ func Region() (string, error) {
 		return "", err
 	}
 
-	region := path.Base(string(data))
-	return region, nil
+	runtimeRegion = path.Base(string(data))
+	return runtimeRegion, nil
 }
 
 // ID returns the unique identifier of the container instance.
 func ID() (string, error) {
+	rmu.Lock()
+	defer rmu.Unlock()
+
+	if runtimeID != "" {
+		return runtimeID, nil
+	}
+
 	endpoint := fmt.Sprintf("%s/computeMetadata/v1/instance/id", metadataEndpoint)
 
 	data, err := metadataRequest(endpoint)
@@ -119,7 +159,8 @@ func ID() (string, error) {
 		return "", err
 	}
 
-	return string(data), nil
+	runtimeID = string(data)
+	return runtimeID, nil
 }
 
 func metadataRequest(endpoint string) ([]byte, error) {

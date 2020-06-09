@@ -79,7 +79,15 @@ func ExampleLogger() {
 }
 
 func ExampleLogger_defaultLogger() {
-	run.DefaultLogger.Notice("Starting example service...")
+	run.Notice("Starting example service...")
+}
+
+func ExampleLogger_logCorrelation() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Pass in the *http.Request as the first argument to correlate
+		// container logs with request logs.
+		run.Info(r, "Handling request...")
+	})
 }
 
 func ExampleTransport() {

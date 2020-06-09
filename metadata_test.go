@@ -84,6 +84,8 @@ var metadataErrorTests = []struct {
 }
 
 func TestMetadataErrors(t *testing.T) {
+	resetRuntimeMetadata()
+
 	ts := httptest.NewServer(http.HandlerFunc(gcptest.BrokenMetadataHandler))
 	defer ts.Close()
 
@@ -125,6 +127,16 @@ func TestMetadataErrors(t *testing.T) {
 			t.Errorf("got id %v, want %v", v, tt.want)
 		}
 	}
+}
+
+func resetRuntimeMetadata() {
+	rmu.Lock()
+	defer rmu.Unlock()
+
+	runtimeID = ""
+	runtimeProjectID = ""
+	runtimeRegion = ""
+	runtimeNumericProjectID = ""
 }
 
 func errorMetadataRequest(key string) (string, error) {
