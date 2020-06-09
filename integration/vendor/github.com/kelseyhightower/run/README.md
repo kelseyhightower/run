@@ -31,7 +31,7 @@ func main() {
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         // Optionally pass in the *http.Request as the first argument
         // to correlate container logs with request logs.
-		run.Info(r, "handling http request")
+        run.Info(r, "handling http request")
 
         w.Write([]byte("Hello world!\n"))
     })

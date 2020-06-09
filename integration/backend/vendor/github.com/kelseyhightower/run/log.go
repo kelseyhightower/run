@@ -210,8 +210,13 @@ func (l *Logger) write(e *LogEntry) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	s := e.String()
 	l.buf = l.buf[:0]
-	l.buf = append(l.buf, e.String()...)
+	l.buf = append(l.buf, s...)
+	if len(s) == 0 || s[len(s)-1] != '\n' {
+		l.buf = append(l.buf, '\n')
+	}
+
 	l.out.Write(l.buf)
 }
 
