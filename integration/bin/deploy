@@ -1,0 +1,23 @@
+#!/bin/bash
+
+PROJECT_ID=$(gcloud config get-value project)
+
+gcloud run deploy run-integration-backend \
+  --no-allow-unauthenticated \
+  --concurrency 10 \
+  --cpu 1 \
+  --image gcr.io/${PROJECT_ID}/run-integration-backend:0.0.15 \
+  --memory '128Mi' \
+  --platform managed \
+  --region us-west1 \
+  --service-account run-integration-backend
+
+gcloud run deploy run-integration-tests \
+  --allow-unauthenticated \
+  --concurrency 10 \
+  --cpu 1 \
+  --image gcr.io/${PROJECT_ID}/run-integration-tests:0.0.15 \
+  --memory '256Mi' \
+  --platform managed \
+  --region us-west1 \
+  --service-account run-integration-tests

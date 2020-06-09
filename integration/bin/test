@@ -1,0 +1,11 @@
+#!/bin/bash
+
+URL=$(gcloud run services describe run-integration-tests \
+  --platform managed \
+  --region us-west1 \
+  --format 'value(status.url)')
+
+curl ${URL}/tests/env
+curl ${URL}/tests/metadata
+curl ${URL}/tests/secrets
+curl ${URL}/tests/service-authentication

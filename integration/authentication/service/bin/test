@@ -1,9 +1,0 @@
-#!/bin/bash
-
-URL=$(gcloud run services describe run-frontend \
-  --platform managed \
-  --region us-west1 \
-  --format 'value(status.url)')
-
-curl ${URL}
-
