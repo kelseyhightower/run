@@ -14,5 +14,7 @@ func main() {
 	http.HandleFunc("/tests/secrets", secretsTestHandler)
 	http.HandleFunc("/tests/service-authentication", serviceAuthenticationTestHandler)
 
-	run.Fatal(run.ListenAndServe(nil))
+	if err := run.ListenAndServe(nil); err != http.ErrServerClosed {
+		run.Fatal(err)
+	}
 }

@@ -1,12 +1,15 @@
 package run
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 )
 
 var serviceCache *cache
@@ -109,9 +112,17 @@ func audFromRequest(r *http.Request) string {
 	return fmt.Sprintf("%s://%s", r.URL.Scheme, r.URL.Hostname())
 }
 
-// ListenAndServe starts an HTTP server with a given handler listening
+// ListenAndServe starts an http.Server with the given handler listening
 // on the port defined by the PORT environment variable or "8080" if not
 // set.
+//
+// ListenAndServe traps the SIGINT and SIGTERM signals then gracefully
+// shuts down the server without interrupting any active connections by
+// calling the server's Shutdown method.
+//
+// ListenAndServe always returns a non-nil error; under normal conditions
+// http.ErrServerClosed will be returned indicating a successful graceful
+// shutdown.
 func ListenAndServe(handler http.Handler) error {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -122,5 +133,28 @@ func ListenAndServe(handler http.Handler) error {
 
 	server := &http.Server{Addr: addr, Handler: handler}
 
-	return server.ListenAndServe()
+	idleConnsClosed := make(chan struct{})
+	go func() {
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+		<-signalChan
+
+		Notice("Received shutdown signal; waiting for active connections to close")
+
+		if err := server.Shutdown(context.Background()); err != nil {
+			Error("Error during server shutdown: %v", err)
+		}
+
+		close(idleConnsClosed)
+	}()
+
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+		return err
+	}
+
+	<-idleConnsClosed
+
+	Notice("Shutdown complete")
+
+	return http.ErrServerClosed
 }
