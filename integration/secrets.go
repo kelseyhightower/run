@@ -22,7 +22,7 @@ func secretsTestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := &SecretsTestResults{
-		Secret: secret,
+		Secret: string(secret),
 	}
 
 	data, err := json.MarshalIndent(result, "", " ")

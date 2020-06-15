@@ -36,9 +36,12 @@ func main() {
         w.Write([]byte("Hello world!\n"))
     })
 
-    // Start an HTTP server listening on the address defined
-    // by the Cloud Run container runtime contract.
-    run.Fatal(run.ListenAndServe(nil))
+    // Start an HTTP server listening on the address defined by the
+    // Cloud Run container runtime contract and gracefully shutdown
+    // when terminated.
+    if err := run.ListenAndServe(nil); err != http.ErrServerClosed {
+        run.Fatal(err)
+    }
 }
 ```
 
@@ -76,7 +79,9 @@ func main() {
         defer response.Body.Close()
     })
 
-    run.Fatal(run.ListenAndServe(nil))
+    if err := run.ListenAndServe(nil); err != http.ErrServerClosed {
+        run.Fatal(err)
+    }
 }
 ```
 

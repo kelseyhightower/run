@@ -1,6 +1,7 @@
 package run
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,14 +12,14 @@ import (
 
 var accessSecretTests = []struct {
 	name string
-	want string
+	want []byte
 	err  error
 }{
-	{"foo", "Test", nil},
-	{"bar", "", ErrSecretNotFound},
-	{"denied", "", ErrSecretPermissionDenied},
-	{"unauthorized", "", ErrSecretUnauthorized},
-	{"unexpected", "", ErrSecretUnknownError},
+	{"foo", []byte("Test"), nil},
+	{"bar", nil, ErrSecretNotFound},
+	{"denied", nil, ErrSecretPermissionDenied},
+	{"unauthorized", nil, ErrSecretUnauthorized},
+	{"unexpected", nil, ErrSecretUnknownError},
 }
 
 func TestAccessSecret(t *testing.T) {
@@ -38,8 +39,8 @@ func TestAccessSecret(t *testing.T) {
 			t.Errorf("unexpected error, want %q, got %q", tt.err, err)
 		}
 
-		if secret != tt.want {
-			t.Errorf("want %s, got %s", tt.want, secret)
+		if !bytes.Equal(secret, tt.want) {
+			t.Errorf("want %v, got %v", tt.want, secret)
 		}
 	}
 }
@@ -60,7 +61,7 @@ func TestAccessSecretVersion(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	if secret != "Test" {
-		t.Errorf("want %s, got %s", "Test", secret)
+	if !bytes.Equal(secret, []byte("Test")) {
+		t.Errorf("want %v, got %v", "Test", secret)
 	}
 }

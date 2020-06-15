@@ -5,11 +5,11 @@ PROJECT_ID=$(gcloud config get-value project)
 go mod vendor
 
 gcloud builds submit \
-  -t gcr.io/${PROJECT_ID}/run-integration-tests:0.0.16 .
+  -t gcr.io/${PROJECT_ID}/run-integration-tests:0.0.17 .
 
 cd backend
 
 go mod vendor
 
 gcloud builds submit \
-  -t gcr.io/${PROJECT_ID}/run-integration-backend:0.0.16 .
+  -t gcr.io/${PROJECT_ID}/run-integration-backend:0.0.17 .

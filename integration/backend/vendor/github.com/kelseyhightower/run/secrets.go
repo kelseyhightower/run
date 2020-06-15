@@ -59,29 +59,29 @@ func formatSecretVersion(project, name, version string) string {
 
 // AccessSecretVersion returns a Google Cloud Secret for the given
 // secret name and version.
-func AccessSecretVersion(name, version string) (string, error) {
+func AccessSecretVersion(name, version string) ([]byte, error) {
 	return accessSecretVersion(name, version)
 }
 
 // AccessSecret returns the latest version of a Google Cloud Secret
 // for the given name.
-func AccessSecret(name string) (string, error) {
+func AccessSecret(name string) ([]byte, error) {
 	return accessSecretVersion(name, "latest")
 }
 
-func accessSecretVersion(name, version string) (string, error) {
+func accessSecretVersion(name, version string) ([]byte, error) {
 	if version == "" {
 		version = "latest"
 	}
 
 	token, err := Token([]string{"https://www.googleapis.com/auth/cloud-platform"})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	numericProjectID, err := NumericProjectID()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	secretVersion := formatSecretVersion(numericProjectID, name, version)
@@ -89,7 +89,7 @@ func accessSecretVersion(name, version string) (string, error) {
 
 	request, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	request.Header.Set("User-Agent", userAgent)
@@ -100,7 +100,7 @@ func accessSecretVersion(name, version string) (string, error) {
 
 	response, err := httpClient.Do(request)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer response.Body.Close()
 
@@ -108,30 +108,30 @@ func accessSecretVersion(name, version string) (string, error) {
 	case 200:
 		break
 	case 401:
-		return "", ErrSecretUnauthorized
+		return nil, ErrSecretUnauthorized
 	case 403:
-		return "", ErrSecretPermissionDenied
+		return nil, ErrSecretPermissionDenied
 	case 404:
-		return "", ErrSecretNotFound
+		return nil, ErrSecretNotFound
 	default:
-		return "", &ErrSecretUnexpectedResponse{s, ErrSecretUnknownError}
+		return nil, &ErrSecretUnexpectedResponse{s, ErrSecretUnknownError}
 	}
 
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var s SecretVersion
 	err = json.Unmarshal(data, &s)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	decodedString, err := base64.StdEncoding.DecodeString(s.Payload.Data)
+	decodedData, err := base64.StdEncoding.DecodeString(s.Payload.Data)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(decodedString), nil
+	return decodedData, nil
 }

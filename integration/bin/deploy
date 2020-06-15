@@ -6,7 +6,7 @@ gcloud run deploy run-integration-backend \
   --no-allow-unauthenticated \
   --concurrency 10 \
   --cpu 1 \
-  --image gcr.io/${PROJECT_ID}/run-integration-backend:0.0.16 \
+  --image gcr.io/${PROJECT_ID}/run-integration-backend:0.0.17 \
   --memory '128Mi' \
   --platform managed \
   --region asia-northeast1 \
@@ -16,7 +16,7 @@ gcloud run deploy run-integration-tests \
   --allow-unauthenticated \
   --concurrency 10 \
   --cpu 1 \
-  --image gcr.io/${PROJECT_ID}/run-integration-tests:0.0.16 \
+  --image gcr.io/${PROJECT_ID}/run-integration-tests:0.0.17 \
   --memory '128Mi' \
   --platform managed \
   --region asia-northeast1 \
