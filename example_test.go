@@ -117,3 +117,9 @@ func ExampleTransport_serviceNameResolution() {
 
 	defer response.Body.Close()
 }
+
+func ExampleListenAndServe() {
+	if err := run.ListenAndServe(nil); err != http.ErrServerClosed {
+		run.Fatal(err)
+	}
+}
