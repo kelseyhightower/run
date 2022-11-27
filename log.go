@@ -162,10 +162,6 @@ func (l *Logger) Log(severity string, v ...interface{}) {
 
 	tid := extractTraceID(v[0])
 	if tid != "" {
-		// The first argument was an *http.Request or context object
-		// and is not part of the message
-		v = v[1:]
-
 		pid, err := ProjectID()
 		if err != nil {
 			e := &LogEntry{
@@ -184,6 +180,12 @@ func (l *Logger) Log(severity string, v ...interface{}) {
 		} else {
 			traceID = fmt.Sprintf("projects/%s/traces/%s", pid, tid)
 		}
+	}
+
+	// The first argument was an *http.Request or context object
+	// and is not part of the message
+	if _, ok := v[0].(*http.Request); ok {
+		v = v[1:]
 	}
 
 	var sourceLocation *LogEntrySourceLocation
