@@ -10,6 +10,9 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 var serviceCache *cache
@@ -116,6 +119,10 @@ func audFromRequest(r *http.Request) string {
 // on the port defined by the PORT environment variable or "8080" if not
 // set.
 //
+// ListenAndServe supports requests in HTTP/2 cleartext (h2c) format,
+// because TLS is terminated by Cloud Run for all client requests including
+// HTTP2.
+//
 // ListenAndServe traps the SIGINT and SIGTERM signals then gracefully
 // shuts down the server without interrupting any active connections by
 // calling the server's Shutdown method.
@@ -129,9 +136,14 @@ func ListenAndServe(handler http.Handler) error {
 		port = "8080"
 	}
 
+	if handler == nil {
+		handler = http.DefaultServeMux
+	}
+
 	addr := net.JoinHostPort("0.0.0.0", port)
 
-	server := &http.Server{Addr: addr, Handler: handler}
+	h2s := &http2.Server{}
+	server := &http.Server{Addr: addr, Handler: h2c.NewHandler(handler, h2s)}
 
 	idleConnsClosed := make(chan struct{})
 	go func() {

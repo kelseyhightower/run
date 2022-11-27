@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
@@ -19,7 +19,7 @@ var ErrNameResolutionPermissionDenied = errors.New("run: permission denied to na
 // Run API are unauthorized.
 var ErrNameResolutionUnauthorized = errors.New("run: cloud run api unauthorized")
 
-// ErrServiceNotFound is returned when a service is not found..
+// ErrServiceNotFound is returned when a service is not found.
 var ErrServiceNotFound = errors.New("run: named service not found")
 
 // ErrNameResolutionUnknownError is return when calls to the Cloud Run
@@ -52,10 +52,10 @@ type ServiceStatus struct {
 	URL string `json:"url"`
 
 	// Similar to url, information on where the service is available on HTTP.
-	Address ServiceAddresss `json:"address"`
+	Address ServiceAddress `json:"address"`
 }
 
-type ServiceAddresss struct {
+type ServiceAddress struct {
 	URL string `json:"url"`
 }
 
@@ -123,7 +123,7 @@ func getService(name, region, project string) (*Service, error) {
 
 	var service Service
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}
