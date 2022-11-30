@@ -37,10 +37,17 @@ func RegisterEndpoint(namespace string) error {
 		Timeout: time.Second * 10,
 	}
 
-	url, err := createEndpointURL(namespace)
+	basePath, err := formatEndpointBasePath(namespace)
 	if err != nil {
 		return err
 	}
+
+	endpointID, err := generateEndpointID()
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("%s/v1/%s?endpointId=%s", serviceEndpoint, basePath, endpointID)
 
 	ip, err := run.IPAddress()
 	if err != nil {
@@ -99,7 +106,55 @@ func RegisterEndpoint(namespace string) error {
 	return nil
 }
 
-func createEndpointURL(namespace string) (string, error) {
+func DeregisterEndpoint(namespace string) error {
+	scopes := []string{"https://www.googleapis.com/auth/cloud-platform"}
+	token, err := run.Token(scopes)
+	if err != nil {
+		return err
+	}
+
+	basePath, err := formatEndpointBasePath(namespace)
+	if err != nil {
+		return err
+	}
+
+	endpointID, err := generateEndpointID()
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("%s/v1/%s/%s", serviceEndpoint, basePath, endpointID)
+
+	c := http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	request, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return err
+	}
+
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
+
+	response, err := c.Do(request)
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode != 200 {
+		data, err := io.ReadAll(response.Body)
+		if err != nil {
+			return err
+		}
+
+		run.Log("Error", string(data))
+		return errors.New(fmt.Sprintf("run: non 200 response when deregistering endpoint: %s", response.Status))
+	}
+
+	return nil
+}
+
+func formatEndpointBasePath(namespace string) (string, error) {
 	serviceName := run.ServiceName()
 	region, err := run.Region()
 	if err != nil {
@@ -111,19 +166,23 @@ func createEndpointURL(namespace string) (string, error) {
 		return "", err
 	}
 
-	ipAddress, err := run.IPAddress()
+	s := fmt.Sprintf("projects/%s/locations/%s/namespaces/%s/services/%s/endpoints",
+		projectID, region, namespace, serviceName)
+
+	return s, nil
+}
+
+func generateEndpointID() (string, error) {
+	serviceName := run.ServiceName()
+
+	ip, err := run.IPAddress()
 	if err != nil {
 		return "", err
 	}
 
-	endpointId := formatEndpointID(serviceName, ipAddress)
-
-	t := "%s/v1/projects/%s/locations/%s/namespaces/%s/services/%s/endpoints?endpointId=%s"
-	endpointURL := fmt.Sprintf(t, serviceEndpoint, projectID, region, namespace, serviceName, endpointId)
-	return endpointURL, nil
-}
-
-func formatEndpointID(name, ip string) string {
 	dashedIPAddress := strings.ReplaceAll(ip, ".", "-")
-	return fmt.Sprintf("%s-%s", name, dashedIPAddress)
+
+	id := fmt.Sprintf("%s-%s", serviceName, dashedIPAddress)
+
+	return id, nil
 }
