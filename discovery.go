@@ -12,13 +12,98 @@ import (
 	"time"
 )
 
-var serviceEndpoint = "https://servicedirectory.googleapis.com"
+var serviceDirectoryEndpoint = "https://servicedirectory.googleapis.com"
 
 type Endpoint struct {
 	Name        string            `json:"name"`
 	Address     string            `json:"address"`
 	Port        int               `json:"port"`
-	Annotations map[string]string `json:"annotations"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+	Network     string            `json:"network,omitempty"`
+	UID         string            `json:"uid,omitempty"`
+}
+
+type ListEndpoints struct {
+	Endpoints []Endpoint `json:"endpoints"`
+}
+
+type LoadBalancer interface {
+	Next() Endpoint
+}
+
+type RoundRobinLoadBalancer struct {
+	endpoints []Endpoint
+	current   int
+}
+
+func NewRoundRobinLoadBalancer(namespace, name string) (*RoundRobinLoadBalancer, error) {
+	endpoints, err := Endpoints(namespace, name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RoundRobinLoadBalancer{endpoints: endpoints, current: 0}, nil
+}
+
+func (lb *RoundRobinLoadBalancer) Next() Endpoint {
+	endpoint := lb.endpoints[lb.current]
+	lb.current++
+
+	if lb.current >= len(lb.endpoints) {
+		lb.current = 0
+	}
+	return endpoint
+}
+
+func Endpoints(namespace, name string) ([]Endpoint, error) {
+	var listEndpoints ListEndpoints
+
+	scopes := []string{"https://www.googleapis.com/auth/cloud-platform"}
+	token, err := Token(scopes)
+	if err != nil {
+		return nil, err
+	}
+
+	basePath, err := formatEndpointBasePath(namespace, name)
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s/v1/%s", serviceDirectoryEndpoint, basePath)
+
+	c := http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
+
+	response, err := c.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		Log("Error", string(data))
+		return nil, errors.New(fmt.Sprintf("run: non 200 response when retrieving endpoints: %s", response.Status))
+	}
+
+	if err := json.Unmarshal(data, &listEndpoints); err != nil {
+		return nil, err
+	}
+
+	return listEndpoints.Endpoints, nil
 }
 
 func RegisterEndpoint(namespace string) error {
@@ -32,7 +117,7 @@ func RegisterEndpoint(namespace string) error {
 		Timeout: time.Second * 10,
 	}
 
-	basePath, err := formatEndpointBasePath(namespace)
+	basePath, err := formatEndpointBasePath(namespace, "")
 	if err != nil {
 		return err
 	}
@@ -42,7 +127,7 @@ func RegisterEndpoint(namespace string) error {
 		return err
 	}
 
-	url := fmt.Sprintf("%s/v1/%s?endpointId=%s", serviceEndpoint, basePath, endpointID)
+	url := fmt.Sprintf("%s/v1/%s?endpointId=%s", serviceDirectoryEndpoint, basePath, endpointID)
 
 	ip, err := IPAddress()
 	if err != nil {
@@ -108,7 +193,7 @@ func DeregisterEndpoint(namespace string) error {
 		return err
 	}
 
-	basePath, err := formatEndpointBasePath(namespace)
+	basePath, err := formatEndpointBasePath(namespace, "")
 	if err != nil {
 		return err
 	}
@@ -118,7 +203,7 @@ func DeregisterEndpoint(namespace string) error {
 		return err
 	}
 
-	url := fmt.Sprintf("%s/v1/%s/%s", serviceEndpoint, basePath, endpointID)
+	url := fmt.Sprintf("%s/v1/%s/%s", serviceDirectoryEndpoint, basePath, endpointID)
 
 	c := http.Client{
 		Timeout: time.Second * 10,
@@ -149,8 +234,10 @@ func DeregisterEndpoint(namespace string) error {
 	return nil
 }
 
-func formatEndpointBasePath(namespace string) (string, error) {
-	serviceName := ServiceName()
+func formatEndpointBasePath(namespace, name string) (string, error) {
+	if name == "" {
+		name = ServiceName()
+	}
 	region, err := Region()
 	if err != nil {
 		return "", err
@@ -162,7 +249,7 @@ func formatEndpointBasePath(namespace string) (string, error) {
 	}
 
 	s := fmt.Sprintf("projects/%s/locations/%s/namespaces/%s/services/%s/endpoints",
-		projectID, region, namespace, serviceName)
+		projectID, region, namespace, name)
 
 	return s, nil
 }
