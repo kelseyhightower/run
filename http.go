@@ -2,6 +2,7 @@ package run
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -20,6 +21,82 @@ var serviceCache *cache
 func init() {
 	data := make(map[string]string)
 	serviceCache = &cache{data}
+}
+
+type ServiceProxy struct {
+	HTTPClient      *http.Client
+	refreshInterval int
+}
+
+func NewServiceProxy() *ServiceProxy {
+	transport := &ServiceDirectoryTransport{
+		Base:      http.DefaultTransport,
+		balancers: make(map[string]*RoundRobinLoadBalancer),
+	}
+
+	httpClient := &http.Client{
+		Transport: transport,
+	}
+
+	return &ServiceProxy{HTTPClient: httpClient}
+}
+
+type ServiceDirectoryTransport struct {
+	// Base optionally provides an http.RoundTripper that handles the
+	// request. If nil, http.DefaultTransport is used.
+	Base http.RoundTripper
+
+	Name      string
+	Namespace string
+
+	balancers map[string]*RoundRobinLoadBalancer
+}
+
+func splitServiceNamespace(host string) (string, string, error) {
+	ss := strings.Split(host, ".")
+	if len(ss) > 2 {
+		return "", "", errors.New("invalid hostname, must contain a valid service name and namespace name")
+	}
+
+	return ss[0], ss[1], nil
+}
+
+func (t *ServiceDirectoryTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	var loadBalancer *RoundRobinLoadBalancer
+
+	if lb, ok := t.balancers[r.Host]; ok {
+		loadBalancer = lb
+	} else {
+		name, namespace, err := splitServiceNamespace(r.Host)
+		if err != nil {
+			return nil, err
+		}
+
+		l, err := NewRoundRobinLoadBalancer(namespace, name)
+		if err != nil {
+			return nil, err
+		}
+
+		t.balancers[r.Host] = l
+		loadBalancer = l
+	}
+
+	endpoint := loadBalancer.Next()
+
+	ip := endpoint.Address
+	port := endpoint.Port
+
+	u, err := url.Parse(fmt.Sprintf("http://%s:%d", ip, port))
+	if err != nil {
+		return nil, err
+	}
+
+	r.Host = u.Host
+	r.URL.Host = u.Host
+	r.URL.Scheme = u.Scheme
+	r.Header.Set("Host", u.Hostname())
+
+	return t.Base.RoundTrip(r)
 }
 
 // Transport is an http.RoundTripper that attaches ID tokens to all

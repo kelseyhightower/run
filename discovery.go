@@ -29,9 +29,12 @@ type ListEndpoints struct {
 
 type LoadBalancer interface {
 	Next() Endpoint
+	RefreshEndpoints()
 }
 
 type RoundRobinLoadBalancer struct {
+	name      string
+	namespace string
 	endpoints []Endpoint
 	current   int
 }
@@ -42,7 +45,11 @@ func NewRoundRobinLoadBalancer(namespace, name string) (*RoundRobinLoadBalancer,
 		return nil, err
 	}
 
-	return &RoundRobinLoadBalancer{endpoints: endpoints, current: 0}, nil
+	loadBalancer := &RoundRobinLoadBalancer{name, namespace, endpoints, 0}
+
+	go loadBalancer.RefreshEndpoints()
+
+	return loadBalancer, nil
 }
 
 func (lb *RoundRobinLoadBalancer) Next() Endpoint {
@@ -53,6 +60,19 @@ func (lb *RoundRobinLoadBalancer) Next() Endpoint {
 		lb.current = 0
 	}
 	return endpoint
+}
+
+func (lb *RoundRobinLoadBalancer) RefreshEndpoints() {
+	for {
+		time.Sleep(time.Second * 10)
+		endpoints, err := Endpoints(lb.namespace, lb.name)
+		if err != nil {
+			Log("Error", err.Error())
+			continue
+		}
+		lb.endpoints = endpoints
+		lb.current = 0
+	}
 }
 
 func Endpoints(namespace, name string) ([]Endpoint, error) {
