@@ -39,8 +39,8 @@ type RoundRobinLoadBalancer struct {
 	current   int
 }
 
-func NewRoundRobinLoadBalancer(namespace, name string) (*RoundRobinLoadBalancer, error) {
-	endpoints, err := Endpoints(namespace, name)
+func NewRoundRobinLoadBalancer(name, namespace string) (*RoundRobinLoadBalancer, error) {
+	endpoints, err := Endpoints(name, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (lb *RoundRobinLoadBalancer) Next() Endpoint {
 func (lb *RoundRobinLoadBalancer) RefreshEndpoints() {
 	for {
 		time.Sleep(time.Second * 10)
-		endpoints, err := Endpoints(lb.namespace, lb.name)
+		endpoints, err := Endpoints(lb.name, lb.namespace)
 		if err != nil {
 			Log("Error", err.Error())
 			continue
@@ -75,7 +75,7 @@ func (lb *RoundRobinLoadBalancer) RefreshEndpoints() {
 	}
 }
 
-func Endpoints(namespace, name string) ([]Endpoint, error) {
+func Endpoints(name, namespace string) ([]Endpoint, error) {
 	var listEndpoints ListEndpoints
 
 	scopes := []string{"https://www.googleapis.com/auth/cloud-platform"}
@@ -84,7 +84,7 @@ func Endpoints(namespace, name string) ([]Endpoint, error) {
 		return nil, err
 	}
 
-	basePath, err := formatEndpointBasePath(namespace, name)
+	basePath, err := formatEndpointBasePath(name, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func RegisterEndpoint(namespace string) error {
 		Timeout: time.Second * 10,
 	}
 
-	basePath, err := formatEndpointBasePath(namespace, "")
+	basePath, err := formatEndpointBasePath("", namespace)
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func DeregisterEndpoint(namespace string) error {
 		return err
 	}
 
-	basePath, err := formatEndpointBasePath(namespace, "")
+	basePath, err := formatEndpointBasePath("", namespace)
 	if err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func DeregisterEndpoint(namespace string) error {
 	return nil
 }
 
-func formatEndpointBasePath(namespace, name string) (string, error) {
+func formatEndpointBasePath(name, namespace string) (string, error) {
 	if name == "" {
 		name = ServiceName()
 	}

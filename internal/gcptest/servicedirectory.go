@@ -28,4 +28,9 @@ func ServiceDirectoryHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, testEndpoints)
 		return
 	}
+	if path == "/v1/projects/test/locations/test/namespaces/default/services/test/endpoints" {
+		r.Header.Set("Content-Type", "application/json")
+		fmt.Fprintf(w, testEndpoints)
+		return
+	}
 }

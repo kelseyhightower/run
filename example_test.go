@@ -104,9 +104,7 @@ func ExampleTransport() {
 
 func ExampleTransport_serviceNameResolution() {
 	client := &http.Client{
-		Transport: &run.Transport{
-			EnableServiceNameResolution: true,
-		},
+		Transport: &run.Transport{},
 	}
 
 	response, err := client.Get("https://service-name")

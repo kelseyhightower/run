@@ -9,11 +9,28 @@ import (
 	"github.com/kelseyhightower/run/internal/gcptest"
 )
 
+func TestParseHostname(t *testing.T) {
+	host := "ping.default.run.local"
+	hostname, err := parseHostname(host)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if hostname.Service != "ping" {
+		t.Errorf("service name mismatch; want %v, got %v", "ping", hostname.Service)
+	}
+}
+
 func TestTransport(t *testing.T) {
 	ms := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
 	defer ms.Close()
 
 	metadataEndpoint = ms.URL
+
+	ss := httptest.NewServer(http.HandlerFunc(gcptest.ServiceDirectoryHandler))
+	defer ss.Close()
+
+	serviceDirectoryEndpoint = ss.URL
 
 	var headers http.Header
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -22,7 +39,13 @@ func TestTransport(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	httpClient := &http.Client{Transport: &Transport{}}
+	httpClient := &http.Client{
+		Transport: &Transport{
+			Base:             http.DefaultTransport,
+			InjectAuthHeader: true,
+			balancers:        make(map[string]*RoundRobinLoadBalancer),
+		},
+	}
 
 	response, err := httpClient.Get(ts.URL)
 	if err != nil {
@@ -38,11 +61,16 @@ func TestTransport(t *testing.T) {
 	}
 }
 
-func TestTransportEnableServiceNameResolution(t *testing.T) {
+func TestTransportNameResolution(t *testing.T) {
 	ms := httptest.NewServer(http.HandlerFunc(gcptest.MetadataHandler))
 	defer ms.Close()
 
 	metadataEndpoint = ms.URL
+
+	ss := httptest.NewServer(http.HandlerFunc(gcptest.ServiceDirectoryHandler))
+	defer ss.Close()
+
+	serviceDirectoryEndpoint = ss.URL
 
 	headers := make(http.Header)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,26 +78,18 @@ func TestTransportEnableServiceNameResolution(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	services := map[string]string{
-		"test": ts.URL,
-	}
-
-	crs := httptest.NewServer(gcptest.CloudrunServer(services))
-	defer crs.Close()
-
-	cloudrunEndpoint = crs.URL
-
 	httpClient := &http.Client{
 		Transport: &Transport{
-			EnableServiceNameResolution: true,
+			Base:             http.DefaultTransport,
+			InjectAuthHeader: true,
+			balancers:        make(map[string]*RoundRobinLoadBalancer),
 		},
 	}
 
-	response, err := httpClient.Get("http://test")
+	_, err := httpClient.Get(ts.URL)
 	if err != nil {
 		t.Error(err)
 	}
-	defer response.Body.Close()
 
 	testHeader := headers.Get("x-test-result")
 	if testHeader != "success" {

@@ -16,77 +16,72 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
-var serviceCache *cache
+var (
+	DefaultNamespace string
+	DefaultRunDomain = "run.local"
+)
 
-func init() {
-	data := make(map[string]string)
-	serviceCache = &cache{data}
+var Client = &http.Client{
+	Transport: &Transport{
+		Base:             http.DefaultTransport,
+		InjectAuthHeader: true,
+		balancers:        make(map[string]*RoundRobinLoadBalancer),
+	},
 }
 
-type ServiceProxy struct {
-	HTTPClient      *http.Client
-	refreshInterval int
-}
-
-func NewServiceProxy() *ServiceProxy {
-	transport := &ServiceDirectoryTransport{
-		Base:      http.DefaultTransport,
-		balancers: make(map[string]*RoundRobinLoadBalancer),
-	}
-
-	httpClient := &http.Client{
-		Transport: transport,
-	}
-
-	return &ServiceProxy{HTTPClient: httpClient}
-}
-
-type ServiceDirectoryTransport struct {
-	// Base optionally provides an http.RoundTripper that handles the
+// Transport is a http.RoundTripper that attaches ID tokens to all
+// outgoing request.
+type Transport struct {
+	// Base optionally provides a http.RoundTripper that handles the
 	// request. If nil, http.DefaultTransport is used.
 	Base http.RoundTripper
 
-	Name      string
-	Namespace string
+	// InjectAuthHeader optionally adds or replaces the HTTP Authorization
+	// header using the ID token from the metadata service.
+	InjectAuthHeader bool
 
 	balancers map[string]*RoundRobinLoadBalancer
 }
 
-func splitServiceNamespace(host string) (string, string, error) {
-	ss := strings.Split(host, ".")
-	if len(ss) > 2 {
-		return "", "", errors.New("invalid hostname, must contain a valid service name and namespace name")
+func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if t.Base == nil {
+		t.Base = http.DefaultTransport
 	}
 
-	return ss[0], ss[1], nil
-}
+	hostname, err := parseHostname(r.Host)
+	if err != nil {
+		if t.InjectAuthHeader {
+			idToken, err := IDToken(audFromRequest(r))
+			if err != nil {
+				return nil, err
+			}
 
-func (t *ServiceDirectoryTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+			r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", idToken))
+		}
+		return t.Base.RoundTrip(r)
+	}
+
 	var loadBalancer *RoundRobinLoadBalancer
 
-	if lb, ok := t.balancers[r.Host]; ok {
+	serviceNamespace := fmt.Sprintf("%s.%s", hostname.Service, hostname.Namespace)
+	if lb, ok := t.balancers[serviceNamespace]; ok {
 		loadBalancer = lb
 	} else {
-		name, namespace, err := splitServiceNamespace(r.Host)
+		l, err := NewRoundRobinLoadBalancer(hostname.Service, hostname.Namespace)
 		if err != nil {
 			return nil, err
 		}
 
-		l, err := NewRoundRobinLoadBalancer(namespace, name)
-		if err != nil {
-			return nil, err
-		}
-
-		t.balancers[r.Host] = l
+		t.balancers[serviceNamespace] = l
 		loadBalancer = l
 	}
 
 	endpoint := loadBalancer.Next()
 
-	ip := endpoint.Address
+	address := endpoint.Address
 	port := endpoint.Port
 
-	u, err := url.Parse(fmt.Sprintf("http://%s:%d", ip, port))
+	u, err := url.Parse(fmt.Sprintf("http://%s:%d", address, port))
 	if err != nil {
 		return nil, err
 	}
@@ -95,96 +90,58 @@ func (t *ServiceDirectoryTransport) RoundTrip(r *http.Request) (*http.Response, 
 	r.URL.Host = u.Host
 	r.URL.Scheme = u.Scheme
 	r.Header.Set("Host", u.Hostname())
+
+	if t.InjectAuthHeader {
+		idToken, err := IDToken(audFromRequest(r))
+		if err != nil {
+			return nil, err
+		}
+
+		r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", idToken))
+	}
 
 	return t.Base.RoundTrip(r)
 }
 
-// Transport is an http.RoundTripper that attaches ID tokens to all
-// all outgoing request.
-type Transport struct {
-	// Base optionally provides an http.RoundTripper that handles the
-	// request. If nil, http.DefaultTransport is used.
-	Base http.RoundTripper
-
-	// EnableServiceNameResolution, if true, enables the resolution
-	// of service names using the Cloud Run API.
-	//
-	// When true, HTTP requests are modified by replacing the original
-	// HTTP target URL with the URL from the named Cloud Run service
-	// in the same region as the caller.
-	//
-	// Examples:
-	//
-	//   http://service => https://service-6bn2iswfgq-ue.a.run.app
-	//   https://service => https://service-6bn2iswfgq-ue.a.run.app
-	//
-	// Service accounts must have the roles/run.viewer IAM permission
-	// to resolve service names using the Cloud Run API.
-	EnableServiceNameResolution bool
+type Hostname struct {
+	Domain    string
+	Namespace string
+	Service   string
 }
 
-func resolveServiceName(r *http.Request) error {
-	var (
-		serviceName string
-		region      string
-		project     string
-	)
+var ErrInvalidHostname = errors.New("invalid hostname")
 
-	parts := strings.Split(r.URL.Host, ".")
+func parseHostname(host string) (*Hostname, error) {
+	var hostname Hostname
 
-	switch n := len(parts); {
-	case n > 1:
-		return nil
-	case n == 0:
-		return nil
-	case n == 1:
-		serviceName = parts[0]
+	if strings.ContainsAny(host, ":") {
+		return nil, ErrInvalidHostname
 	}
 
-	var u *url.URL
-	endpoint := serviceCache.Get(serviceName)
-	if endpoint == "" {
-		service, err := getService(serviceName, region, project)
-		if err != nil {
-			return fmt.Errorf("run: error resolving service name: %w", err)
+	if ip := net.ParseIP(host); ip != nil {
+		return nil, ErrInvalidHostname
+	}
+
+	ss := strings.Split(host, ".")
+
+	switch len(ss) {
+	case 0:
+		return nil, ErrInvalidHostname
+	case 1:
+		hostname.Namespace = DefaultNamespace
+		hostname.Service = ss[0]
+	case 4:
+		domain := fmt.Sprintf("%s.%s", ss[2], ss[3])
+		if domain == DefaultRunDomain {
+			hostname.Domain = domain
+			hostname.Namespace = ss[1]
+			hostname.Service = ss[0]
 		}
-
-		endpoint = service.Status.Address.URL
-		serviceCache.Set(serviceName, endpoint)
+	default:
+		return nil, ErrInvalidHostname
 	}
 
-	u, err := url.Parse(endpoint)
-	if err != nil {
-		return err
-	}
-
-	r.Host = u.Host
-	r.URL.Host = u.Host
-	r.URL.Scheme = u.Scheme
-	r.Header.Set("Host", u.Hostname())
-
-	return nil
-}
-
-// RoundTrip implements http.RoundTripper.
-func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if t.EnableServiceNameResolution {
-		if err := resolveServiceName(req); err != nil {
-			return nil, err
-		}
-	}
-
-	idToken, err := IDToken(audFromRequest(req))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", idToken))
-	if t.Base == nil {
-		t.Base = http.DefaultTransport
-	}
-
-	return t.Base.RoundTrip(req)
+	return &hostname, nil
 }
 
 // audFromRequest extracts the Cloud Run service URL from an HTTP request.
