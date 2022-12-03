@@ -130,6 +130,7 @@ func RegisterEndpoint(namespace string) error {
 	scopes := []string{"https://www.googleapis.com/auth/cloud-platform"}
 	token, err := Token(scopes)
 	if err != nil {
+		Log("Error", fmt.Sprintf("Unable to register endpoint: %s", err))
 		return err
 	}
 
@@ -139,11 +140,13 @@ func RegisterEndpoint(namespace string) error {
 
 	basePath, err := formatEndpointBasePath("", namespace)
 	if err != nil {
+		Log("Error", fmt.Sprintf("Unable to register endpoint. Error formating endpoint base path: %s", err))
 		return err
 	}
 
 	endpointID, err := generateEndpointID()
 	if err != nil {
+		Log("Error", fmt.Sprintf("Unable to register endpoint. Error generating endpoint ID: %s", err))
 		return err
 	}
 
@@ -151,16 +154,19 @@ func RegisterEndpoint(namespace string) error {
 
 	ip, err := IPAddress()
 	if err != nil {
+		Log("Error", fmt.Sprintf("Unable to register endpoint. Error getting IP address: %s", err))
 		return err
 	}
 
 	port, err := strconv.Atoi(Port())
 	if err != nil {
+		Log("Error", fmt.Sprintf("Unable to register endpoint. Error converting instance port: %s", err))
 		return err
 	}
 
 	instanceID, err := ID()
 	if err != nil {
+		Log("Error", fmt.Sprintf("Unable to register endpoint. Error retrieving instance ID: %s", err))
 		return err
 	}
 
@@ -175,6 +181,7 @@ func RegisterEndpoint(namespace string) error {
 
 	data, err := json.Marshal(ep)
 	if err != nil {
+		Log("Error", fmt.Sprintf("Unable to register endpoint. Error serializing endpoint request object: %s", err))
 		return err
 	}
 
@@ -182,6 +189,7 @@ func RegisterEndpoint(namespace string) error {
 
 	request, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
+		Log("Error", fmt.Sprintf("Unable to register endpoint. Error create endpoint HTTP request: %s", err))
 		return err
 	}
 
@@ -190,19 +198,22 @@ func RegisterEndpoint(namespace string) error {
 
 	response, err := c.Do(request)
 	if err != nil {
+		Log("Error", fmt.Sprintf("Unable to register endpoint. HTTP request failed: %s", err))
 		return err
 	}
 
 	if response.StatusCode != 200 {
 		data, err := io.ReadAll(response.Body)
 		if err != nil {
+			Log("Error", fmt.Sprintf("Unable to register endpoint. Error reading HTTP response: %s", err))
 			return err
 		}
 
-		Log("Error", string(data))
+		Log("Error", fmt.Sprintf("Unable to register endpoint. HTTP request failed: %s", string(data)))
 		return errors.New(fmt.Sprintf("run: non 200 response when registering endpoint: %s", response.Status))
 	}
 
+	Log("Info", fmt.Sprintf("Successfully registered endpoint: %s", endpointID))
 	return nil
 }
 
