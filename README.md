@@ -11,7 +11,6 @@ package main
 
 import (
     "net/http"
-    "os"
 
     "github.com/kelseyhightower/run"
 )
@@ -66,12 +65,9 @@ func main() {
             return
         }
 
-        // Use the run.Transport to automatically attach ID tokens to outbound requests
-        // and optionally expand service names using the Cloud Run API.
-        // See https://pkg.go.dev/github.com/kelseyhightower/run?tab=doc#Transport
-        client := http.Client{Transport: &run.Transport{EnableServiceNameResolution: false}}
-
-        response, err := client.Do(request)
+        // Use the run.Client to automatically attach ID tokens to outbound requests
+        // and optionally lookup service names using Service Directory.
+        response, err := run.Client.Do(request)
         if err != nil {
             http.Error(w, err.Error(), 500)
             return
