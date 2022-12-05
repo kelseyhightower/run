@@ -2,6 +2,7 @@ package run
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -21,12 +22,50 @@ var (
 	DefaultRunDomain = "run.local"
 )
 
-var Client = &http.Client{
-	Transport: &Transport{
-		Base:             http.DefaultTransport,
-		InjectAuthHeader: true,
-		balancers:        make(map[string]*RoundRobinLoadBalancer),
-	},
+type Client struct {
+	// DisableInjectAuthorizationHeader, if true, prevents the Transport from
+	// requesting an ID token from the metadata service, and populating
+	// the Authorization request header when the http.Request contains
+	// no existing Authorization value.
+	DisableInjectAuthorizationHeader bool
+
+	// EnableMutualTLSAuthentication, if true, enables mTLS on the client connection
+	// based on a mTLS configuration bundle mounted at MTLSConfiguration
+	// path.
+	EnableMutualTLSAuthentication bool
+
+	base          *http.Client
+	baseClientSet bool
+}
+
+func (c *Client) Do(req *http.Request) (*http.Response, error) {
+	if c.baseClientSet {
+		return c.base.Do(req)
+	}
+
+	transport := &Transport{}
+
+	if c.EnableMutualTLSAuthentication {
+		m := &MTLSConfigManager{}
+
+		transport.Base = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				VerifyPeerCertificate: m.VerifyPeerSPIFFECertificate(),
+				InsecureSkipVerify:    true,
+				GetClientCertificate:  m.GetClientCertificate,
+			},
+		}
+	}
+
+	transport.DisableInjectAuthorizationHeader = c.DisableInjectAuthorizationHeader
+
+	c.base = &http.Client{
+		Transport: transport,
+	}
+
+	c.baseClientSet = true
+
+	return c.base.Do(req)
 }
 
 // Transport is a http.RoundTripper that attaches ID tokens to all
@@ -36,9 +75,11 @@ type Transport struct {
 	// request. If nil, http.DefaultTransport is used.
 	Base http.RoundTripper
 
-	// InjectAuthHeader optionally adds or replaces the HTTP Authorization
-	// header using the ID token from the metadata service.
-	InjectAuthHeader bool
+	// DisableInjectAuthorizationHeader, if true, prevents the Transport from
+	// requesting an ID token from the metadata service, and populating
+	// the Authorization request header when the http.Request contains
+	// no existing Authorization value.
+	DisableInjectAuthorizationHeader bool
 
 	balancers map[string]*RoundRobinLoadBalancer
 }
@@ -48,9 +89,8 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 		t.Base = http.DefaultTransport
 	}
 
-	hostname, err := parseHostname(r.Host)
-	if err != nil {
-		if t.InjectAuthHeader {
+	if !t.DisableInjectAuthorizationHeader {
+		if r.Header.Get("Authorization") == "" {
 			idToken, err := IDToken(audFromRequest(r))
 			if err != nil {
 				return nil, err
@@ -58,6 +98,10 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 
 			r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", idToken))
 		}
+	}
+
+	hostname, err := parseHostname(r.Host)
+	if err != nil {
 		return t.Base.RoundTrip(r)
 	}
 
@@ -81,7 +125,7 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 	address := endpoint.Address
 	port := endpoint.Port
 
-	u, err := url.Parse(fmt.Sprintf("http://%s:%d", address, port))
+	u, err := url.Parse(fmt.Sprintf("%s://%s:%d", r.URL.Scheme, address, port))
 	if err != nil {
 		return nil, err
 	}
@@ -90,15 +134,6 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.URL.Host = u.Host
 	r.URL.Scheme = u.Scheme
 	r.Header.Set("Host", u.Hostname())
-
-	if t.InjectAuthHeader {
-		idToken, err := IDToken(audFromRequest(r))
-		if err != nil {
-			return nil, err
-		}
-
-		r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", idToken))
-	}
 
 	return t.Base.RoundTrip(r)
 }
@@ -149,7 +184,16 @@ func audFromRequest(r *http.Request) string {
 	return fmt.Sprintf("%s://%s", r.URL.Scheme, r.URL.Hostname())
 }
 
-// ListenAndServe starts an http.Server with the given handler listening
+type Server struct {
+	Addr     string
+	Listener net.Listener
+	Handler  http.Handler
+
+	// Allowed holds a set of SPIFFE ID accepted by the HTTP client.
+	Allowed []string
+}
+
+// ListenAndServe starts a http.Server with the given handler listening
 // on the port defined by the PORT environment variable or "8080" if not
 // set.
 //
@@ -195,6 +239,60 @@ func ListenAndServe(handler http.Handler) error {
 	}()
 
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+		return err
+	}
+
+	<-idleConnsClosed
+
+	Notice("Shutdown complete")
+
+	return http.ErrServerClosed
+}
+
+func (s *Server) ListenAndServeMTLS() error {
+	mTLSPort := os.Getenv("MTLS_PORT")
+	if mTLSPort == "" {
+		mTLSPort = "8443"
+	}
+
+	if s.Handler == nil {
+		s.Handler = http.DefaultServeMux
+	}
+
+	if s.Addr == "" {
+		s.Addr = net.JoinHostPort("0.0.0.0", mTLSPort)
+	}
+
+	m := &MTLSConfigManager{}
+
+	h2s := &http2.Server{}
+	server := &http.Server{
+		Addr:    s.Addr,
+		Handler: h2c.NewHandler(s.Handler, h2s),
+		TLSConfig: &tls.Config{
+			ClientAuth:            tls.RequireAnyClientCert,
+			InsecureSkipVerify:    true,
+			VerifyPeerCertificate: m.VerifyPeerSPIFFECertificate(),
+			GetCertificate:        m.GetCertificate,
+		},
+	}
+
+	idleConnsClosed := make(chan struct{})
+	go func() {
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+		<-signalChan
+
+		Notice("Received shutdown signal; waiting for active connections to close")
+
+		if err := server.Shutdown(context.Background()); err != nil {
+			Error("Error during server shutdown: %v", err)
+		}
+
+		close(idleConnsClosed)
+	}()
+
+	if err := server.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
 		return err
 	}
 

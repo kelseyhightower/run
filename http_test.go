@@ -41,9 +41,8 @@ func TestTransport(t *testing.T) {
 
 	httpClient := &http.Client{
 		Transport: &Transport{
-			Base:             http.DefaultTransport,
-			InjectAuthHeader: true,
-			balancers:        make(map[string]*RoundRobinLoadBalancer),
+			Base:      http.DefaultTransport,
+			balancers: make(map[string]*RoundRobinLoadBalancer),
 		},
 	}
 
@@ -80,9 +79,8 @@ func TestTransportNameResolution(t *testing.T) {
 
 	httpClient := &http.Client{
 		Transport: &Transport{
-			Base:             http.DefaultTransport,
-			InjectAuthHeader: true,
-			balancers:        make(map[string]*RoundRobinLoadBalancer),
+			Base:      http.DefaultTransport,
+			balancers: make(map[string]*RoundRobinLoadBalancer),
 		},
 	}
 
